@@ -365,7 +365,8 @@ def load_ml_resources(progress_callback: Callable, load_toxicity: bool, asr_mode
                 VAD_MODEL, VAD_UTILS_CONTAINER = torch.hub.load(
                     repo_or_dir='snakers4/silero-vad',
                     model='silero_vad',
-                    force_reload=False
+                    force_reload=False,
+                    trust_repo=True
                 )
 
                 if isinstance(VAD_UTILS_CONTAINER, tuple):
