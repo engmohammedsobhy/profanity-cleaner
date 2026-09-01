@@ -554,15 +554,17 @@ def generate_beep_segment(duration_ms: int, sample_rate: int, channels: int) -> 
         channels=channels
     )
 
-def load_censor_sound(sound_choice: str, duration_ms: int, sample_rate: int, channels: int, progress_callback) -> AudioSegment:
+def load_censor_sound(sound_choice: str, duration_ms: int, sample_rate: int, channels: int, custom_sound_path: str, volume_change: float, progress_callback) -> AudioSegment:
     if 'pydub' not in sys.modules:
         return AudioSegment.silent(duration=duration_ms)
         
     if sound_choice == 'B':
-        return generate_beep_segment(duration_ms, sample_rate, channels)
+        return generate_beep_segment(duration_ms, sample_rate, channels) + volume_change
 
-    elif sound_choice in ['D', 'Q', 'T']:
-        if sound_choice == 'D':
+    elif sound_choice in ['D', 'Q', 'T', 'C']:
+        if sound_choice == 'C' and custom_sound_path and os.path.exists(custom_sound_path):
+            sound_path = custom_sound_path
+        elif sound_choice == 'D':
             sound_path = DOLPHIN_SOUND_PATH
         elif sound_choice == 'Q':
             sound_path = QUACK_SOUND_PATH
@@ -572,7 +574,7 @@ def load_censor_sound(sound_choice: str, duration_ms: int, sample_rate: int, cha
 
         if not os.path.exists(sound_path):
             progress_callback.emit(f"Warning: Sound file '{os.path.basename(sound_path)}' not found. Falling back to Beep.")
-            return generate_beep_segment(duration_ms, sample_rate, channels)
+            return generate_beep_segment(duration_ms, sample_rate, channels) + volume_change
 
         try:
             censor_sound = AudioSegment.from_file(sound_path)
@@ -582,15 +584,15 @@ def load_censor_sound(sound_choice: str, duration_ms: int, sample_rate: int, cha
                 repeat_count = int(np.ceil(duration_ms / len(censor_sound)))
                 censor_sound = censor_sound * repeat_count
 
-            return censor_sound[:duration_ms]
+            return censor_sound[:duration_ms] + volume_change
 
         except Exception as e:
             progress_callback.emit(f"Error loading custom sound: {e}. Falling back to Beep.")
-            return generate_beep_segment(duration_ms, sample_rate, channels)
+            return generate_beep_segment(duration_ms, sample_rate, channels) + volume_change
 
     return AudioSegment.silent(duration=duration_ms)
 
-def censor_media(input_path: str, output_path_base: str, log: List[Dict[str, Any]], mode: str, censor_toxic: bool, sound_choice: str, progress_callback: Callable, progress_value_callback: Callable) -> str:
+def censor_media(input_path: str, output_path_base: str, log: List[Dict[str, Any]], mode: str, censor_toxic: bool, sound_choice: str, custom_sound_path: str, volume_change: float, progress_callback: Callable, progress_value_callback: Callable) -> str:
     if 'pydub' not in sys.modules:
         raise Exception("pydub (requires FFmpeg) is not installed. Media censoring cannot proceed.")
         
@@ -669,7 +671,7 @@ def censor_media(input_path: str, output_path_base: str, log: List[Dict[str, Any
 
             if mode == 'sound':
                 replacement_segment = load_censor_sound(
-                    sound_choice, actual_duration, media.frame_rate, media.channels, progress_callback
+                    sound_choice, actual_duration, media.frame_rate, media.channels, custom_sound_path, volume_change, progress_callback
                 )
             elif mode == 'silence':
                 replacement_segment = AudioSegment.silent(duration=actual_duration, frame_rate=media.frame_rate)

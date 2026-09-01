@@ -752,6 +752,8 @@ def process_media_file(file_path: str, options: Dict[str, Any], progress_callbac
         options.get("mode", "sound"),
         False,
         options.get("sound", "B"),
+        options.get("custom_sound_path", ""),
+        options.get("censor_volume", 0.0),
         progress_callback,
         progress_value_callback,
     )

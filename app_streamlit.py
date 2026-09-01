@@ -18,25 +18,26 @@ st.markdown(
     """
     <style>
         :root {
-            --bg: #0f1217;
-            --panel: #171b22;
-            --line: #2a3039;
+            --bg: #0a0c10;
+            --panel: rgba(23, 27, 34, 0.6);
+            --line: rgba(42, 48, 57, 0.5);
             --text: #eef2f7;
             --muted: #9aa4b2;
             --teal: #2dd4bf;
             --amber: #f59e0b;
             --rose: #fb7185;
         }
-        .stApp { background: var(--bg); color: var(--text); }
-        h1, h2, h3 { letter-spacing: 0; }
-        [data-testid="stSidebar"] { background: #11151c; border-right: 1px solid var(--line); }
-        .hero-title { font-size: 2.35rem; font-weight: 780; margin: 0 0 .2rem 0; }
+        .stApp { background: linear-gradient(135deg, #0a0c10 0%, #1a1f29 100%); color: var(--text); }
+        h1, h2, h3 { letter-spacing: 0; font-weight: 700; }
+        [data-testid="stSidebar"] { background: rgba(17,21,28,0.7); backdrop-filter: blur(10px); border-right: 1px solid var(--line); }
+        .hero-title { font-size: 2.8rem; font-weight: 800; background: -webkit-linear-gradient(45deg, var(--teal), var(--amber)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0 0 .2rem 0; }
         .subtle { color: var(--muted); }
-        .metric-strip { border: 1px solid var(--line); border-left: 4px solid var(--teal); padding: .8rem 1rem; background: var(--panel); border-radius: 8px; }
-        .result-box { border: 1px solid var(--line); padding: 1rem; background: #11151c; border-radius: 8px; }
-        .stButton > button, .stDownloadButton > button { border-radius: 8px; font-weight: 700; }
+        .metric-strip { border: 1px solid var(--line); border-left: 4px solid var(--teal); padding: 1rem; background: var(--panel); backdrop-filter: blur(8px); border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .result-box { border: 1px solid var(--line); padding: 1rem; background: rgba(17,21,28,0.8); border-radius: 12px; }
+        .stButton > button, .stDownloadButton > button { border-radius: 8px; font-weight: 700; transition: all 0.3s ease; border: 1px solid var(--teal); background: rgba(45, 212, 191, 0.1); color: var(--teal); }
+        .stButton > button:hover, .stDownloadButton > button:hover { background: var(--teal); color: #0a0c10; box-shadow: 0 4px 15px rgba(45,212,191,0.4); transform: translateY(-2px); border-color: var(--teal); }
         textarea, input { border-radius: 8px !important; }
-        pre { white-space: pre-wrap; border: 1px solid var(--line); padding: .8rem; border-radius: 8px; background: #10141b; }
+        pre { white-space: pre-wrap; border: 1px solid var(--line); padding: .8rem; border-radius: 12px; background: rgba(16,20,27,0.8); backdrop-filter: blur(8px); }
     </style>
     """,
     unsafe_allow_html=True,
@@ -194,8 +195,16 @@ def render_media_tab() -> None:
             st.markdown("### Configuration")
             asr_label = st.radio("ASR Model", list(workflows.ASR_MODELS.keys()), index=1, horizontal=True)
             mode = st.radio("Censor Mode", ["sound", "silence"], index=0, horizontal=True)
-            sound_map = {"Sine wave": "B", "Quack": "Q", "Dolphin": "D", "Triggered": "T"}
+            sound_map = {"Sine wave": "B", "Quack": "Q", "Dolphin": "D", "Triggered": "T", "Custom": "C"}
             sound_label = st.selectbox("Sound Choice", list(sound_map.keys()), disabled=mode != "sound")
+            
+            custom_sound_path = ""
+            if sound_label == "Custom" and mode == "sound":
+                uploaded_custom_sound = st.file_uploader("Upload Custom Audio (WAV/MP3)", type=["wav", "mp3", "ogg"], key="custom_sound")
+                if uploaded_custom_sound:
+                    custom_sound_path = workflows.save_uploaded_file(uploaded_custom_sound, "profanity_cleaner_custom")
+                    
+            censor_volume = st.slider("Censor Sound Volume (dB)", min_value=-30.0, max_value=30.0, value=0.0, step=1.0, disabled=mode != "sound", help="Adjust the volume of the censor sound relative to the original audio.")
 
         with st.container(border=True):
             st.markdown("### Transcript Output")
@@ -231,6 +240,8 @@ def render_media_tab() -> None:
                 "asr_model": workflows.ASR_MODELS[asr_label],
                 "mode": mode,
                 "sound": sound_map[sound_label],
+                "custom_sound_path": custom_sound_path,
+                "censor_volume": censor_volume,
                 "censor_toxic": False,
                 "analyze_toxicity": False,
                 "toxicity_threshold": workflows.DEFAULT_TOXICITY_THRESHOLD,
