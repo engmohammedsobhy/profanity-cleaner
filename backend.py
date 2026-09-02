@@ -140,36 +140,8 @@ MASCOT_AREA_HEIGHT = 600
 
 
 
-def calculate_toxicity_score(text: str) -> float: #-------------------------------------------------------------------------------------------------------------------------
-    if 'torch' not in sys.modules or 'transformers' not in sys.modules or len(text.split()) < MIN_TOXICITY_WORD_COUNT:
-        return 0.0
-
-    global TOXICITY_MODEL, TOXICITY_TOKENIZER, TOXICITY_DEVICE
-
-    if TOXICITY_MODEL is None or TOXICITY_TOKENIZER is None:
-        return 0.0
-
-    inputs = TOXICITY_TOKENIZER(text, return_tensors="pt", truncation=True, padding=True)
-
-    inputs = {k: v.to(TOXICITY_DEVICE) for k, v in inputs.items()}
-
-    TOXICITY_MODEL.eval()
-
-    is_cuda = (TOXICITY_DEVICE.type == 'cuda')
-    with torch.autocast(device_type=TOXICITY_DEVICE.type, dtype=torch.float16, enabled=is_cuda):
-        with torch.no_grad():
-            outputs = TOXICITY_MODEL(**inputs)
-
-    probabilities = F.softmax(outputs.logits, dim=-1)
-
-    toxic_index = TOXICITY_MODEL.config.label2id.get('toxic')
-
-    if toxic_index is not None and probabilities.size(1) > toxic_index:
-        toxic_score = probabilities[0][toxic_index].float().item()
-    else:
-        toxic_score = 0.5
-
-    return toxic_score
+def calculate_toxicity_score(text: str) -> float:
+    return 0.0
 
 def normalize_text_for_profanity(word: str) -> str: #------------------------------------------------------------------------------------------------------------------------
     
@@ -358,62 +330,46 @@ def load_ml_resources(progress_callback: Any, load_toxicity: bool, asr_model_nam
         
     global TOXICITY_MODEL, TOXICITY_TOKENIZER, TOXICITY_DEVICE, VAD_MODEL, VAD_UTILS_REFERENCE, ML_MODEL_CACHE, ASR_MODEL_KEY_CURRENT
 
-    original_stdout = sys.stdout
-
-    log_stream = Stream(progress_callback)
-    
-    try:
-        sys.stdout = log_stream
-        
-        if asr_model_name:
-            if asr_model_name in ML_MODEL_CACHE:
-                progress_callback.emit(f"ASR Model ({asr_model_name}) found in cache. Ready.")
-                ASR_MODEL_KEY_CURRENT = asr_model_name
-            else:
-                try:
-                    progress_callback.emit(f"Loading ASR model ({asr_model_name})...")
-                    ML_MODEL_CACHE.clear()
-                    gc.collect()
-                    if 'torch' in sys.modules and hasattr(torch, 'cuda') and torch.cuda.is_available():
-                        torch.cuda.empty_cache()
-                    model = whisper.load_model(asr_model_name)
-                    ML_MODEL_CACHE[asr_model_name] = model
-                    ASR_MODEL_KEY_CURRENT = asr_model_name
-                    progress_callback.emit(f"ASR Model ({asr_model_name}) loaded successfully.")
-                except Exception as e:
-                    sys.stdout = original_stdout
-                    raise Exception(f"Failed to load ASR Model: {e}. Check Whisper/PyTorch installation.")
-
-
-
-        if VAD_MODEL is None and asr_model_name:
+    if asr_model_name:
+        if asr_model_name in ML_MODEL_CACHE:
+            progress_callback.emit(f"ASR Model ({asr_model_name}) found in cache. Ready.")
+            ASR_MODEL_KEY_CURRENT = asr_model_name
+        else:
             try:
-                progress_callback.emit("Loading VAD model (Speech filtering)...")
-                sys.stdout = original_stdout
-                vad_model, vad_utils_container = torch.hub.load(
-                    repo_or_dir='snakers4/silero-vad',
-                    model='silero_vad',
-                    force_reload=False,
-                    trust_repo=True,
-                    onnx=False
-                )
-
-                if isinstance(vad_utils_container, tuple):
-                    VAD_UTILS_REFERENCE = vad_utils_container[1]
-                else:
-                    VAD_UTILS_REFERENCE = vad_utils_container
-
-                VAD_MODEL = vad_model
-                VAD_MODEL.to(TOXICITY_DEVICE)
-                progress_callback.emit("VAD Model loaded successfully.")
+                progress_callback.emit(f"Loading ASR model ({asr_model_name})...")
+                ML_MODEL_CACHE.clear()
+                gc.collect()
+                if 'torch' in sys.modules and hasattr(torch, 'cuda') and torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                model = whisper.load_model(asr_model_name)
+                ML_MODEL_CACHE[asr_model_name] = model
+                ASR_MODEL_KEY_CURRENT = asr_model_name
+                progress_callback.emit(f"ASR Model ({asr_model_name}) loaded successfully.")
             except Exception as e:
-                VAD_MODEL = None
-                progress_callback.emit(f"VAD model optional filtering skipped ({e}). Proceeding directly with Whisper ASR.")
-            finally:
-                sys.stdout = log_stream
+                raise Exception(f"Failed to load ASR Model: {e}. Check Whisper/PyTorch installation.")
 
-    finally:
-        sys.stdout = original_stdout
+    if VAD_MODEL is None and asr_model_name:
+        try:
+            progress_callback.emit("Loading VAD model (Speech filtering)...")
+            vad_model, vad_utils_container = torch.hub.load(
+                repo_or_dir='snakers4/silero-vad',
+                model='silero_vad',
+                force_reload=False,
+                trust_repo=True,
+                onnx=False
+            )
+
+            if isinstance(vad_utils_container, tuple):
+                VAD_UTILS_REFERENCE = vad_utils_container[1]
+            else:
+                VAD_UTILS_REFERENCE = vad_utils_container
+
+            VAD_MODEL = vad_model
+            VAD_MODEL.to(TOXICITY_DEVICE)
+            progress_callback.emit("VAD Model loaded successfully.")
+        except Exception as e:
+            VAD_MODEL = None
+            progress_callback.emit(f"VAD model optional filtering skipped ({e}). Proceeding directly with Whisper ASR.")
 
 def apply_vad_filtering(input_path: str, progress_callback: Any) -> str:
     progress_callback = _normalize_callback(progress_callback)
@@ -592,7 +548,8 @@ def generate_beep_segment(duration_ms: int, sample_rate: int, channels: int) -> 
         channels=channels
     )
 
-def load_censor_sound(sound_choice: str, duration_ms: int, sample_rate: int, channels: int, custom_sound_path: str, volume_change: float, progress_callback) -> AudioSegment:
+def load_censor_sound(sound_choice: str, duration_ms: int, sample_rate: int, channels: int, custom_sound_path: str, volume_change: float, progress_callback: Any) -> AudioSegment:
+    progress_callback = _normalize_callback(progress_callback)
     if 'pydub' not in sys.modules:
         return AudioSegment.silent(duration=duration_ms)
         
