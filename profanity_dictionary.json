@@ -1,0 +1,94 @@
+{
+  "metadata": {
+    "description": "Dictionary of profanity categorized by severity level and class",
+    "version": "1.0"
+  },
+  "categories": {
+    "MILD": {
+      "level": 1,
+      "description": "Mild oaths, mild insults, body terms, and mainstream context words",
+      "words": [
+        "airhead", "arse", "ass", "blimey", "blockhead", "bloody", "bonehead", "boob", "boobs", "butt",
+        "butthead", "coward", "crap", "crappy", "crybaby", "dammit", "damn", "damnit", "dang", "darn",
+        "dimwit", "doofus", "dope", "dork", "dumb", "dumbass", "dummy", "dweeb", "effing", "erotic",
+        "escort", "flip", "freakin", "freaking", "fricking", "friggin", "frigging", "fudge", "geez", "god",
+        "goddammit", "goddamn", "goodness", "goof", "goofball", "gosh", "hardcore", "heck", "hell", "hooker",
+        "idiot", "jackass", "jeez", "jerk", "kill", "killed", "killer", "killing", "kills", "kinky",
+        "kinkster", "knucklehead", "lame", "loser", "lovemaking", "meathead", "moron", "nerd", "nitwit", "nude",
+        "nudity", "numbskull", "omg", "panties", "panty", "playboy", "poop", "sex", "sexy", "shoot",
+        "stupid", "suck", "sucked", "sucker", "sucking", "sucks", "sugar", "swinger", "topless", "tushy",
+        "upskirt", "wimp"
+      ]
+    },
+    "MODERATE": {
+      "level": 2,
+      "description": "Classic moderate profanity, vulgar anatomical terms, and sexual references",
+      "words": [
+        "anal", "anus", "apeshit", "arsehole", "asshole", "assmunch", "balls", "bastard", "bdsm", "bellend",
+        "bitch", "bitches", "bitching", "bitchy", "blowjob", "bollocks", "bondage", "boner", "bugger", "bullshit",
+        "bunghole", "buttcheeks", "butthole", "camslut", "camwhore", "clit", "clitoris", "cock", "cocks", "cornhole",
+        "creampie", "cum", "cumming", "deepthroat", "dick", "dickhead", "dickweed", "dipshit", "domination", "dominatrix",
+        "ejaculation", "felch", "feltch", "fingerbang", "fingering", "fisting", "footjob", "frotting", "genitals", "git",
+        "gokkun", "grope", "handjob", "hentai", "humping", "jizz", "juggs", "knobbing", "knobhead", "masturbate",
+        "milf", "muffdiving", "numbnuts", "orgasm", "pegging", "penis", "piss", "pissed", "pisser", "pisspig",
+        "pissing", "plonker", "porn", "porno", "pornography", "prick", "pussies", "pussy", "rimjob", "rimming",
+        "sadism", "schlong", "scumbag", "shemale", "shit", "shite", "shithead", "shitty", "skeet", "sluts",
+        "slut", "smut", "snowballing", "shrimping", "sonofabitch", "splooge", "spooge", "spunk", "strapon", "tit",
+        "tits", "titties", "titty", "tool", "tosser", "twat", "twink", "vagina", "vulva", "wanker",
+        "wazzock", "whore"
+      ]
+    },
+    "STRONG": {
+      "level": 3,
+      "description": "Strong profanity, explicit sexual acts, extreme vulgarities, and sexual violence",
+      "words": [
+        "2 girls 1 cup", "2g1c", "acrotomophilia", "alabama hot pocket", "alaskan pipeline", "anilingus", "assbadger", "auto erotic",
+        "autoerotic", "babeland", "baby batter", "baby juice", "ball gag", "ball gravy", "ball kicking", "ball licking",
+        "ball sack", "ball sucking", "bangbros", "bangbus", "bareback", "barely legal", "barenaked", "bastardo",
+        "bastinado", "bawbag", "bbw", "beastiality", "beaver cleaver", "beaver lips", "bestiality", "big black",
+        "big breasts", "big knockers", "big tits", "bimbos", "birdlock", "bitchtits", "black cock", "blonde action",
+        "blonde on blonde action", "blow job", "blow your load", "blue waffle", "blumpkin", "booty call", "brown showers",
+        "brunette action", "bukake", "bukkake", "bullet vibe", "bung hole", "busty", "camel toe", "camgirl",
+        "carpet muncher", "carpetmuncher", "chocolate rosebuds", "cialis", "circlejerk", "cleveland steamer", "clover clamps",
+        "clusterfuck", "cocknose", "cockwomble", "coprolagnia", "coprophilia", "cumdumpster", "cumshot", "cumshots",
+        "cumwipe", "cunnilingus", "cunt", "date rape", "daterape", "deep throat", "dendrophilia", "dickweasel",
+        "dildo", "dingleberries", "dingleberry", "dirty pillows", "dirty sanchez", "dog style", "doggie style",
+        "doggiestyle", "doggy style", "doggystyle", "dolcett", "dommes", "donkey punch", "double dong", "double penetration",
+        "dp action", "dry hump", "dvda", "eat my ass", "ecchi", "erotism", "eunuch", "fecal",
+        "fellatio", "female squirting", "femdom", "figging", "foot fetish", "fuck", "fuck buttons", "fucker",
+        "fuckin", "fucking", "fuckoff", "fucktards", "fuckyou", "fudge packer", "fudgepacker", "futanari",
+        "gang bang", "gangbang", "gay sex", "giant cock", "girl on", "girl on top", "girls gone wild",
+        "goatcx", "goatse", "god damn", "golden shower", "goodpoop", "goo girl", "goregasm", "group sex",
+        "g-spot", "guro", "hand job", "hard core", "homoerotic", "horny", "hot carl", "hot chick",
+        "huge fat", "incest", "intercourse", "jack off", "jail bait", "jailbait", "jelly donut", "jerk off",
+        "jizzcock", "jizzstain", "kinbaku", "knobjockey", "leather restraint", "leather straight jacket", "lemon party",
+        "livesex", "lolita", "make me come", "male squirting", "masturbating", "masturbation", "menage a trois",
+        "missionary position", "mong", "motherfucker", "motherfucking", "mound of venus", "mr hands", "muff diver",
+        "nambla", "nawashi", "nig nog", "nimphomania", "nipple", "nipples", "nonce", "nsfw",
+        "nsfw images", "nutten", "nympho", "nymphomania", "octopussy", "omorashi", "one cup two girls", "one guy one jar",
+        "orgy", "paedophile", "pedobear", "pedophile", "phone sex", "piece of shit", "pikey", "piss pig",
+        "pissflaps", "pisswizard", "pleasure chest", "pole smoker", "ponyplay", "poof", "poon", "poontang",
+        "poop chute", "poopchute", "prince albert piercing", "pthc", "pubes", "punany", "queaf", "queef",
+        "quim", "raging boner", "rape", "raping", "rapist", "rectum", "reverse cowgirl", "rosy palm",
+        "rosy palm and her 5 sisters", "rusty trombone", "santorum", "scat", "scissoring", "semen", "sexcam",
+        "sexo", "sexual", "sexuality", "sexually", "shaved beaver", "shaved pussy", "shibari", "shitblimp",
+        "shitpouch", "shota", "s&m", "snatch", "sodomize", "sodomy", "splooge moose", "spread legs",
+        "strap on", "strappado", "strip club", "style doggy", "suicide girls", "sultry women", "swastika",
+        "tainted love", "taste my", "tea bagging", "threesome", "thundercunt", "thumbzilla", "tied up", "tight white",
+        "tongue in a", "tribadism", "tub girl", "tubgirl", "twatface", "twatwaffle", "twinkie", "two girls one cup",
+        "undressing", "urethra play", "urophilia", "venus mound", "viagra", "vibrator", "violet wand", "vorarephilia",
+        "voyeur", "voyeurweb", "voyuer", "wank", "wet dream", "white power", "worldsex", "wrapping men",
+        "wrinkled starfish", "xx", "xxx", "yaoi", "yellow showers", "yiffy", "zoophilia"
+      ]
+    },
+    "VERY_SEVERE": {
+      "level": 4,
+      "description": "Racial/ethnic slurs, identity/homophobic slurs, and disability slurs",
+      "words": [
+        "beaner", "beaners", "bulldyke", "chink", "coon", "coons", "darkie", "dyke", "fag", "faggot",
+        "honkey", "jigaboo", "jiggaboo", "jiggerboo", "kike", "negro", "neonazi", "nigga", "nigger", "paki",
+        "raghead", "retard", "slanteye", "spastic", "spic", "towelhead", "tranny", "wetback"
+      ]
+    }
+  }
+}

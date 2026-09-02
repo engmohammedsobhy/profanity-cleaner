@@ -1,0 +1,961 @@
+import torch
+import torchaudio
+import whisper
+import sys
+import os
+import time
+import random
+import math
+import json
+import re
+import platform
+import gc
+from typing import List, Dict, Any, Tuple, Set, Callable
+from urllib.parse import quote
+try:
+    from toxicity_detoxifier import end_to_end_detoxifier
+except Exception as e:
+    print(f"INFO: toxicity_detoxifier optional import skipped: {e}")
+    end_to_end_detoxifier = None
+
+
+
+
+try:
+    import whisper
+    from better_profanity import profanity
+    from pydub import AudioSegment
+    import numpy as np
+    import docx
+    import torch
+    import torchaudio
+    import soundfile as sf
+except ImportError as e:
+    print(f"INFO: Failed to import optional ML/Media libraries: {e}")
+
+
+            
+import ctypes
+import platform
+
+def set_app_user_model_id(app_id: str): #--------------------------------------------------------------------------------------------------------------------------------
+    if platform.system() == 'Windows':
+        try:
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
+        except AttributeError:
+            pass
+
+
+
+
+DEFAULT_TOXICITY_THRESHOLD = 0.75
+MIN_TOXICITY_WORD_COUNT = 3
+MEDIA_TRANSCRIPT_REPLACEMENT = "****"
+MIN_SEGMENT_DURATION_MS = 1000 # Kept for reference, but removed from SRT logic
+SPLASH_FADE_DURATION_MS = 500
+SPLASH_INITIAL_DELAY_MS = 1500
+
+ASR_MODEL_CHOICE = "base.en"
+
+# --- MODIFICATION: ML Model Caching ---
+ML_MODEL_CACHE: Dict[str, Any] = {} # Cache for ASR models
+ASR_MODEL_KEY_CURRENT: str = ASR_MODEL_CHOICE # Key for the currently active ASR model
+# Removed global ASR_MODEL
+
+CENSOR_SOUND_DIR = os.path.dirname(os.path.abspath(__file__))
+DOLPHIN_SOUND_PATH = os.path.join(CENSOR_SOUND_DIR, "dolphin.wav")
+QUACK_SOUND_PATH = os.path.join(CENSOR_SOUND_DIR, "quack.wav")
+TRIGGERED_SOUND_PATH = os.path.join(CENSOR_SOUND_DIR, "triggered.wav")
+
+MEDIA_EXTENSIONS = ('.mp4', '.mkv', '.avi', '.mov', '.mp3', '.wav', '.m4a')
+TEXT_EXTENSIONS = ('.txt', '.docx')
+
+PROFANITY_DICTIONARY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "profanity_dictionary.json")
+
+def load_profanity_dictionary_json() -> Dict[str, Any]:
+    if os.path.exists(PROFANITY_DICTIONARY_FILE):
+        try:
+            with open(PROFANITY_DICTIONARY_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Failed to load profanity dictionary JSON: {e}")
+    return {}
+
+PROFANITY_DICTIONARY = load_profanity_dictionary_json()
+
+try:#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    profanity.load_censor_words()
+except NameError:
+    pass
+
+TOXICITY_MODEL = None
+TOXICITY_TOKENIZER = None
+try:
+    TOXICITY_DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+except NameError:
+    TOXICITY_DEVICE = None
+
+VAD_MODEL = None
+VAD_SAMPLE_RATE = 16000
+
+VAD_UTILS_REFERENCE = None
+
+GLOBAL_WHITELIST_WORDS: Set[str] = set()
+GLOBAL_BLACKLIST_WORDS: Set[str] = set()
+
+ICON_COLOR_UNCHECKED = "#ffffff"
+ICON_COLOR_CHECKED = "#000000"
+
+SVG_BASE_DIR = CENSOR_SOUND_DIR
+
+SVG_MAP_WHITE = {
+    "silence": os.path.join(SVG_BASE_DIR, r"xw.svg"),
+    "sound": os.path.join(SVG_BASE_DIR, r"xw2.svg"),
+    "sine": os.path.join(SVG_BASE_DIR, r"xw3.svg"),
+    "quack": os.path.join(SVG_BASE_DIR, r"xw4.svg"),
+    "dolphin": os.path.join(SVG_BASE_DIR, r"xw5.svg"),
+    "triggered": os.path.join(SVG_BASE_DIR, r"xw6.svg"),
+}
+
+SVG_MAP_BLACK = {
+    "silence": os.path.join(SVG_BASE_DIR, r"xb.svg"),
+    "sound": os.path.join(SVG_BASE_DIR, r"xb2.svg"),
+    "sine": os.path.join(SVG_BASE_DIR, r"xb3.svg"),
+    "quack": os.path.join(SVG_BASE_DIR, r"xb4.svg"),
+    "dolphin": os.path.join(SVG_BASE_DIR, r"xb5.svg"),
+    "triggered": os.path.join(SVG_BASE_DIR, r"xb6.svg"),
+}
+
+MASCOT_SVG_PATHS = {
+    "media": os.path.join(CENSOR_SOUND_DIR, "m1.svg"),
+    "text": os.path.join(CENSOR_SOUND_DIR, "m2.svg"),
+    "startup": os.path.join(CENSOR_SOUND_DIR, "m3.svg"),
+    "working": os.path.join(CENSOR_SOUND_DIR, "m4.svg"),
+    "success": os.path.join(CENSOR_SOUND_DIR, "m4-.svg"),
+    "drag": os.path.join(CENSOR_SOUND_DIR, "m5.svg"),
+}
+MASCOT_MIN_DISPLAY_SIZE = (550, 550)
+
+FIXED_WINDOW_WIDTH = 1350
+CONTROLS_COLUMN_WIDTH = 640
+FIXED_WINDOW_HEIGHT = 770
+
+MASCOT_AREA_WIDTH = FIXED_WINDOW_WIDTH - CONTROLS_COLUMN_WIDTH
+
+MASCOT_AREA_HEIGHT = 600
+
+
+
+def calculate_toxicity_score(text: str) -> float:
+    if not text or not text.strip():
+        return 0.0
+    try:
+        res = end_to_end_detoxifier(text)
+        return float(res.get("toxicity_score", 0.0))
+    except Exception as e:
+        print(f"Error calculating toxicity: {e}")
+        return 0.0
+    
+
+def normalize_text_for_profanity(word: str) -> str: #------------------------------------------------------------------------------------------------------------------------
+    
+    word = word.lower()
+
+    word = word.replace('0', 'o').replace('1', 'i').replace('!', 'i').replace('3', 'e').replace('4', 'a')
+    word = word.replace('5', 's').replace('7', 't').replace('8', 'b').replace('$', 's').replace('@', 'a').replace('|', 'i').replace('^', 'a')
+
+    word = word.replace('ph', 'f')
+
+    word = re.sub(r'[^a-z]', '', word)
+
+    if len(word) <= 1:
+        return ""
+
+    return word
+
+def check_for_profanity(word: str, use_obfuscation_check: bool) -> bool: #---------------------------------------------------------------------------------------------
+    
+    if 'better_profanity' not in sys.modules:
+        return False
+        
+    global GLOBAL_WHITELIST_WORDS, GLOBAL_BLACKLIST_WORDS
+
+    normalized_word = normalize_text_for_profanity(word)
+    
+    if normalized_word and normalized_word in GLOBAL_WHITELIST_WORDS:
+        return False
+
+    if normalized_word and normalized_word in GLOBAL_BLACKLIST_WORDS:
+        return True
+
+    # 1. Check original word (for standard lexicon match)
+    if profanity.contains_profanity(word):
+        return True
+
+    # 2. Check normalized word (for obfuscation/Leet speak match)
+    if use_obfuscation_check:
+        if profanity.contains_profanity(normalized_word):
+            return True
+
+    return False
+
+def format_censored_word(word: str, censor_style: str, custom_replacement: str) -> str: #-------------------------------------------------------------------------------------------
+    
+    if censor_style == 'A':
+        return '*' * len(word)
+    elif censor_style == 'B':
+        if len(word) > 0:
+            return word[0] + ('*' * max(1, len(word) - 1))
+        return '*'
+    elif censor_style == 'D':
+        return custom_replacement
+    
+    return '****'
+
+
+def read_text_file(file_path: str) -> str: #-----------------------------------------------------------------------------------------------------------------------------------------
+    ext = os.path.splitext(file_path)[1].lower()
+
+    if ext == '.txt':
+        encodings_to_try = ['utf-8', 'latin-1', 'cp1252', 'utf-16']
+        for encoding in encodings_to_try:
+            try:
+                with open(file_path, 'r', encoding=encoding) as f:
+                    return f.read()
+            except UnicodeDecodeError:
+                continue
+            except Exception:
+                return ""
+        return ""
+    elif ext == '.docx':
+        try:
+            document = docx.Document(file_path)
+            return "\n".join(filter(None, [paragraph.text for paragraph in document.paragraphs]))
+        except Exception:
+            return ""
+    else:
+        return ""
+
+def load_word_list_from_text(text_content: str) -> Set[str]:
+    
+    if not text_content:
+        return set()
+    
+    words = re.findall(r'\S+', text_content)
+    
+    normalized_words = set()
+    for word in words:
+        if word.strip():
+            normalized_word = normalize_text_for_profanity(word.strip())
+            if normalized_word:
+                normalized_words.add(normalized_word)
+                
+    return normalized_words
+
+def pre_convert_to_wav(input_path: str, progress_callback: Any) -> str:
+    progress_callback = _normalize_callback(progress_callback)
+    
+    if 'pydub' not in sys.modules:
+        progress_callback.emit("pydub not imported. Skipping pre-conversion.")
+        return input_path
+        
+    base_name, ext = os.path.splitext(input_path)
+    ext = ext.lower()
+
+    if ext not in ['.mp4', '.mov', '.mkv', '.m4a']:
+        return input_path
+
+    temp_wav_path = f"{base_name}_temp_VAD_in.wav"
+
+    progress_callback.emit(f"Pre-converting {ext} to WAV for VAD/ASR compatibility...")
+
+    try:
+        audio_segment = AudioSegment.from_file(input_path)
+
+        audio_segment = audio_segment.set_frame_rate(VAD_SAMPLE_RATE).set_channels(1)
+
+        audio_segment.export(temp_wav_path, format="wav")
+
+        progress_callback.emit(f"Pre-conversion successful. Using temporary file: {os.path.basename(temp_wav_path)}")
+        return temp_wav_path
+
+    except Exception as e:
+        progress_callback.emit(f"Pre-conversion failed: {e}. VAD may still fail. Ensure FFmpeg is installed and on your PATH.")
+        return input_path
+
+class CallbackWrapper:
+    def __init__(self, target: Any):
+        self.target = target
+
+    def emit(self, message: Any) -> None:
+        if self.target is None:
+            return
+        if hasattr(self.target, "emit") and callable(getattr(self.target, "emit")):
+            self.target.emit(message)
+        elif callable(self.target):
+            self.target(message)
+
+
+def _normalize_callback(cb: Any) -> CallbackWrapper:
+    if isinstance(cb, CallbackWrapper):
+        return cb
+    return CallbackWrapper(cb)
+
+
+class Stream(object):
+    
+    def __init__(self, callback: Any):
+        self.callback = _normalize_callback(callback)
+        self.line_buffer = ""
+        
+    def isatty(self):
+        return False
+
+    def write(self, text):
+        
+        if '\r' in text:
+            text = text.split('\r')[-1]
+
+        self.line_buffer += text
+        
+        if '\n' in self.line_buffer:
+            lines = self.line_buffer.split('\n')
+            for line in lines[:-1]:
+                if line.strip():
+                    self.callback.emit(line.strip())
+            self.line_buffer = lines[-1]
+            
+        elif '|' in self.line_buffer and 'M/s' in self.line_buffer and self.line_buffer.strip():
+            self.callback.emit(self.line_buffer.strip())
+            self.line_buffer = ""
+            
+    def flush(self):
+        
+        if self.line_buffer.strip():
+            self.callback.emit(self.line_buffer.strip())
+        self.line_buffer = ""
+
+
+def load_ml_resources(progress_callback: Any, load_toxicity: bool, asr_model_name: str):
+    progress_callback = _normalize_callback(progress_callback)
+    
+    if 'whisper' not in sys.modules or 'torch' not in sys.modules:
+        raise Exception("Core ML libraries (whisper, torch) are not installed. Cannot proceed.")
+        
+    global TOXICITY_MODEL, TOXICITY_TOKENIZER, TOXICITY_DEVICE, VAD_MODEL, VAD_UTILS_REFERENCE, ML_MODEL_CACHE, ASR_MODEL_KEY_CURRENT
+
+    if asr_model_name:
+        if asr_model_name in ML_MODEL_CACHE:
+            progress_callback.emit(f"ASR Model ({asr_model_name}) found in cache. Ready.")
+            ASR_MODEL_KEY_CURRENT = asr_model_name
+        else:
+            try:
+                progress_callback.emit(f"Loading ASR model ({asr_model_name})...")
+                ML_MODEL_CACHE.clear()
+                gc.collect()
+                if 'torch' in sys.modules and hasattr(torch, 'cuda') and torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                model = whisper.load_model(asr_model_name)
+                ML_MODEL_CACHE[asr_model_name] = model
+                ASR_MODEL_KEY_CURRENT = asr_model_name
+                progress_callback.emit(f"ASR Model ({asr_model_name}) loaded successfully.")
+            except Exception as e:
+                raise Exception(f"Failed to load ASR Model: {e}. Check Whisper/PyTorch installation.")
+
+    if VAD_MODEL is None and asr_model_name:
+        try:
+            progress_callback.emit("Loading VAD model (Speech filtering)...")
+            vad_model, vad_utils_container = torch.hub.load(
+                repo_or_dir='snakers4/silero-vad',
+                model='silero_vad',
+                force_reload=False,
+                trust_repo=True,
+                onnx=False
+            )
+
+            if isinstance(vad_utils_container, tuple):
+                VAD_UTILS_REFERENCE = vad_utils_container[1]
+            else:
+                VAD_UTILS_REFERENCE = vad_utils_container
+
+            VAD_MODEL = vad_model
+            VAD_MODEL.to(TOXICITY_DEVICE)
+            progress_callback.emit("VAD Model loaded successfully.")
+        except Exception as e:
+            VAD_MODEL = None
+            progress_callback.emit(f"VAD model optional filtering skipped ({e}). Proceeding directly with Whisper ASR.")
+
+    return ML_MODEL_CACHE.get(asr_model_name)
+
+def apply_vad_filtering(input_path: str, progress_callback: Any) -> str:
+    progress_callback = _normalize_callback(progress_callback)
+    
+    if 'torchaudio' not in sys.modules or 'pydub' not in sys.modules:
+        progress_callback.emit("torchaudio or pydub not imported. Skipping VAD filtering.")
+        return input_path
+        
+    global VAD_MODEL, VAD_SAMPLE_RATE, TOXICITY_DEVICE, VAD_UTILS_REFERENCE
+
+    if VAD_MODEL is None:
+        return input_path
+
+    base_name, _ = os.path.splitext(input_path)
+    cleaned_path = f"{base_name}_CLEANED_VAD.wav"
+
+    progress_callback.emit(f"Applying VAD to filter speech segments...")
+
+    try:
+        if 'soundfile' in sys.modules:
+            import soundfile as sf
+            data, sr = sf.read(input_path, dtype='float32')
+            audio_tensor = torch.from_numpy(data)
+            if audio_tensor.ndim == 1:
+                audio_tensor = audio_tensor.unsqueeze(0)
+            else:
+                audio_tensor = audio_tensor.T
+        else:
+            audio_tensor, sr = torchaudio.load(input_path)
+
+        if sr != VAD_SAMPLE_RATE:
+            resampler = torchaudio.transforms.Resample(sr, VAD_SAMPLE_RATE)
+            audio_tensor = resampler(audio_tensor)
+            sr = VAD_SAMPLE_RATE
+
+        if audio_tensor.shape[0] > 1:
+            audio_tensor = torch.mean(audio_tensor, dim=0, keepdim=True)
+
+        audio_tensor = audio_tensor.to(TOXICITY_DEVICE)
+
+        try:
+            get_speech_timestamps = VAD_UTILS_REFERENCE
+
+            if get_speech_timestamps is None or not callable(get_speech_timestamps):
+                raise TypeError("'get_speech_timestamps' utility is not a callable function.")
+
+            audio_tensor_1d = audio_tensor.squeeze(0)
+
+            speech_timestamps = get_speech_timestamps(
+                audio_tensor_1d, VAD_MODEL, sampling_rate=sr,
+                chunk_size=int(0.032 * sr),
+                threshold=0.5
+            )
+
+        except Exception as e:
+            progress_callback.emit(f"VAD Batch Processing Utility failed: {e}. Falling back to original audio.")
+            return input_path
+
+        timestamps_ms = [
+            (t['start'] * 1000, t['end'] * 1000) for t in speech_timestamps
+        ]
+
+        if not timestamps_ms:
+            progress_callback.emit("VAD found no speech. Using original audio.")
+            return input_path
+
+        full_audio = AudioSegment.from_file(input_path)
+        cleaned_audio = AudioSegment.empty()
+
+        for start_ms, end_ms in timestamps_ms:
+            start_ms = max(0, start_ms)
+            end_ms = min(len(full_audio), end_ms)
+
+            chunk = full_audio[start_ms:end_ms]
+            cleaned_audio += chunk
+
+        total_duration = len(full_audio)
+
+        progress_callback.emit(f"VAD filtered original audio ({total_duration/1000:.1f}s) down to {len(cleaned_audio)/1000:.1f}s of pure speech.")
+
+        cleaned_audio.export(cleaned_path, format="wav")
+        return cleaned_path
+
+    except Exception as e:
+        progress_callback.emit(f"VAD Filtering failed during processing: {e}. Falling back to original audio.")
+        return input_path
+
+
+def load_audio_samples(audio_path: str) -> Any:
+    try:
+        if 'soundfile' in sys.modules:
+            import soundfile as sf
+            data, sr = sf.read(audio_path, dtype='float32')
+            if data.ndim > 1:
+                data = data.mean(axis=1)
+            if sr != 16000 and 'torchaudio' in sys.modules:
+                tensor = torch.from_numpy(data).unsqueeze(0)
+                resampler = torchaudio.transforms.Resample(sr, 16000)
+                data = resampler(tensor).squeeze(0).numpy()
+            if sr == 16000 or 'torchaudio' in sys.modules:
+                return data
+    except Exception:
+        pass
+
+    try:
+        if 'pydub' in sys.modules:
+            audio = AudioSegment.from_file(audio_path)
+            audio = audio.set_frame_rate(16000).set_channels(1)
+            samples = np.array(audio.get_array_of_samples(), dtype=np.float32)
+            if audio.sample_width == 2:
+                samples /= 32768.0
+            elif audio.sample_width == 4:
+                samples /= 2147483648.0
+            elif audio.sample_width == 1:
+                samples = (samples - 128.0) / 128.0
+            return samples
+    except Exception:
+        pass
+
+    return audio_path
+
+try:
+    import whisper
+    import whisper.audio
+    whisper.load_audio = load_audio_samples
+    whisper.audio.load_audio = load_audio_samples
+except Exception:
+    pass
+
+
+def transcribe_audio(audio_path: str, progress_callback: Any) -> Dict[str, Any]:
+    progress_callback = _normalize_callback(progress_callback)
+    if 'whisper' not in sys.modules:
+        raise Exception("Whisper ASR library not imported. Cannot transcribe.")
+        
+    if not os.path.exists(audio_path):
+        raise FileNotFoundError(f"Audio file not found at: {audio_path}")
+
+    global ML_MODEL_CACHE, ASR_MODEL_KEY_CURRENT
+
+    asr_model = ML_MODEL_CACHE.get(ASR_MODEL_KEY_CURRENT)
+    if asr_model is None:
+        raise Exception(f"ASR Model ('{ASR_MODEL_KEY_CURRENT}') not loaded. This shouldn't happen.")
+
+    progress_callback.emit("Starting audio transcription...")
+
+    import warnings
+    warnings.filterwarnings("ignore", message="FP16 is not supported on CPU; using FP32 instead")
+
+    audio_input = load_audio_samples(audio_path)
+
+    old_stdout, old_stderr = sys.stdout, sys.stderr
+    try:
+        with open(os.devnull, 'w', encoding='utf-8') as devnull:
+            sys.stdout = devnull
+            sys.stderr = devnull
+            with torch.no_grad():
+                result = asr_model.transcribe(
+                    audio_input,
+                    language="en",
+                    word_timestamps=True,
+                    verbose=False
+                )
+    except Exception as e:
+        if isinstance(e, (BrokenPipeError, OSError)) or 'Broken pipe' in str(e) or getattr(e, 'errno', None) == 32:
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+            progress_callback.emit("Notice: Pipe error suppressed during transcription stream. Retrying in-memory...")
+            with torch.no_grad():
+                result = asr_model.transcribe(
+                    audio_input,
+                    language="en",
+                    word_timestamps=True,
+                    verbose=False
+                )
+        else:
+            raise e
+    finally:
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
+
+    gc.collect()
+    return result
+
+def format_time_srt(ms: int) -> str:
+    
+    hours = int(ms / 3600000)
+    ms -= hours * 3600000
+    minutes = int(ms / 60000)
+    ms -= minutes * 60000
+    seconds = int(ms / 1000)
+    ms -= seconds * 1000
+    return f"{hours:02}:{minutes:02}:{seconds:02},{ms:03}"
+
+
+def generate_conversation_log(transcription_result: Dict[str, Any], toxicity_threshold: float, check_toxicity: bool) -> List[Dict[str, Any]]:
+    
+    conversation_log = []
+
+    for segment in transcription_result.get("segments", []):
+        segment_text = segment.get('text', '').strip()
+
+        toxicity_score = 0.0
+        is_toxic = False
+
+        if check_toxicity:
+            toxicity_score = calculate_toxicity_score(segment_text)
+            is_toxic = toxicity_score >= toxicity_threshold
+
+        for word_info in segment.get("words", []):
+            if isinstance(word_info, dict) and 'word' in word_info:
+                word = word_info['word'].strip()
+                start = word_info['start']
+                end = word_info['end']
+            else:
+                continue
+
+            is_profane = check_for_profanity(word, use_obfuscation_check=True)
+
+            log_entry = {
+                "start_ms": int(start * 1000),
+                "end_ms": int(end * 1000),
+                "word": word,
+                "is_profane": is_profane,
+                "is_toxic": is_toxic,
+                "toxicity_score": round(toxicity_score, 4),
+            }
+            conversation_log.append(log_entry)
+
+    return conversation_log
+
+def generate_beep_segment(duration_ms: int, sample_rate: int, channels: int) -> AudioSegment:
+    BEEP_FREQUENCY = 1000
+    n_frames = int(duration_ms * sample_rate / 1000)
+    t = np.linspace(0, duration_ms / 1000, n_frames, endpoint=False)
+    amplitude = np.iinfo(np.int16).max * 0.5
+    beep_wave = (amplitude * np.sin(2 * np.pi * BEEP_FREQUENCY * t)).astype(np.int16)
+
+    if channels == 2:
+        beep_wave = np.column_stack((beep_wave, beep_wave)).flatten()
+
+    return AudioSegment(
+        beep_wave.tobytes(),
+        frame_rate=sample_rate,
+        sample_width=2,
+        channels=channels
+    )
+
+def load_censor_sound(sound_choice: str, duration_ms: int, sample_rate: int, channels: int, custom_sound_path: str = "", volume_change: float = 0.0, progress_callback: Any = None, loop_sound: bool = True) -> AudioSegment:
+    progress_callback = _normalize_callback(progress_callback)
+    if 'pydub' not in sys.modules:
+        return AudioSegment.silent(duration=duration_ms)
+        
+    if sound_choice == 'B':
+        return generate_beep_segment(duration_ms, sample_rate, channels) + volume_change
+
+    sound_path = None
+    if os.path.exists(sound_choice):
+        sound_path = sound_choice
+    elif sound_choice == 'C' and custom_sound_path and os.path.exists(custom_sound_path):
+        sound_path = custom_sound_path
+    elif sound_choice == 'D':
+        sound_path = DOLPHIN_SOUND_PATH
+    elif sound_choice == 'Q':
+        sound_path = QUACK_SOUND_PATH
+    elif sound_choice == 'T':
+        sound_path = TRIGGERED_SOUND_PATH
+
+    if not sound_path or not os.path.exists(sound_path):
+        progress_callback.emit(f"Warning: Sound file '{sound_choice}' not found. Falling back to Beep.")
+        return generate_beep_segment(duration_ms, sample_rate, channels) + volume_change
+
+    try:
+        censor_sound = AudioSegment.from_file(sound_path)
+        censor_sound = censor_sound.set_frame_rate(sample_rate).set_channels(channels)
+
+        if len(censor_sound) < duration_ms:
+            if loop_sound:
+                repeat_count = int(np.ceil(duration_ms / len(censor_sound)))
+                censor_sound = censor_sound * repeat_count
+                censor_sound = censor_sound[:duration_ms]
+            else:
+                censor_sound = censor_sound + AudioSegment.silent(duration=duration_ms - len(censor_sound))
+        else:
+            censor_sound = censor_sound[:duration_ms]
+
+        return censor_sound + volume_change
+
+    except Exception as e:
+        progress_callback.emit(f"Error loading custom sound: {e}. Falling back to Beep.")
+        return generate_beep_segment(duration_ms, sample_rate, channels) + volume_change
+
+def censor_media(
+    input_path: str,
+    output_path_base: str,
+    log: List[Dict[str, Any]],
+    mode: str,
+    censor_toxic: bool,
+    sound_choice: Any,
+    custom_sound_path: str,
+    volume_change: float,
+    progress_callback: Callable,
+    progress_value_callback: Callable,
+    overlap_censor: bool = False,
+    marked_audio_volume: float = 100.0,
+    padding_before_ms: int = 50,
+    padding_after_ms: int = 50,
+    custom_sound_paths: Any = None,
+    loop_censor_sound: bool = True,
+) -> str:
+    progress_callback = _normalize_callback(progress_callback)
+    progress_value_callback = _normalize_callback(progress_value_callback)
+
+    if 'pydub' not in sys.modules:
+        raise Exception("pydub (requires FFmpeg) is not installed. Media censoring cannot proceed.")
+        
+    progress_callback.emit(f"Starting Media Censoring: Mode='{mode}', Overlap='{overlap_censor}', Marked Volume='{marked_audio_volume}%', Padding=({padding_before_ms}ms before, {padding_after_ms}ms after)...")
+
+    def needs_censoring(entry):
+        if entry.get('is_profane'):
+            return True
+        if censor_toxic and entry.get('is_toxic'):
+            return True
+        return False
+
+    segments_to_censor = [entry for entry in log if needs_censoring(entry)]
+
+    base_name, ext = os.path.splitext(input_path)
+    censor_label = "_CENSORED"
+    if censor_toxic:
+        censor_label += "_TOXIC"
+
+    output_format = ext[1:].lower()
+    output_file_path = f"{base_name}{censor_label}{ext}"
+    
+    export_parameters = []
+    
+    is_video_input = output_format in ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v']
+
+    if is_video_input:
+        output_format = ext[1:].lower()
+        output_file_path = f"{base_name}{censor_label}{ext}"
+        progress_callback.emit(f"Input is video ({output_format}). Setting up two-input FFmpeg muxing (Censored Audio + Original Video).")
+        export_parameters.extend(["-i", input_path])
+        export_parameters.extend(["-map", "0:a", "-map", "1:v", "-c:v", "copy"])
+
+    if not segments_to_censor:
+        progress_callback.emit("No segments found requiring censorship. Finished.")
+        if is_video_input:
+            try:
+                import shutil
+                shutil.copyfile(input_path, output_file_path)
+            except Exception as e:
+                progress_callback.emit(f"Error copying video file: {e}. Output not saved.")
+        return output_file_path
+
+    try:
+        media = AudioSegment.from_file(input_path)
+    except Exception as e:
+        raise Exception(f"Could not load media file with pydub. Ensure FFmpeg is on PATH. Error: {e}")
+
+    bleeped_media = media[:]
+    total_segments = len(segments_to_censor)
+
+    raw_intervals = []
+    for entry in segments_to_censor:
+        start = entry['start_ms']
+        end = entry['end_ms']
+        p_start = max(0, start - padding_before_ms)
+        p_end = min(len(media), end + padding_after_ms)
+        if p_end > p_start:
+            raw_intervals.append((p_start, p_end))
+
+    if not raw_intervals:
+        return output_file_path
+
+    raw_intervals.sort(key=lambda x: x[0])
+    merged_intervals = []
+    for interval in raw_intervals:
+        if not merged_intervals:
+            merged_intervals.append(interval)
+        else:
+            prev_start, prev_end = merged_intervals[-1]
+            if interval[0] <= prev_end:
+                merged_intervals[-1] = (prev_start, max(prev_end, interval[1]))
+            else:
+                merged_intervals.append(interval)
+
+    bleeped_media = media[:]
+    total_segments = len(merged_intervals)
+
+    for i, (actual_start, actual_end) in enumerate(merged_intervals):
+        actual_duration = actual_end - actual_start
+        if actual_duration <= 0:
+            continue
+
+        if mode in ['sound', 'multiple_sounds']:
+            if isinstance(sound_choice, list) and len(sound_choice) > 0:
+                raw_sounds = sound_choice
+            else:
+                raw_sounds = [str(sound_choice) if sound_choice else 'B']
+
+            c_paths = custom_sound_paths if isinstance(custom_sound_paths, list) and custom_sound_paths else ([custom_sound_path] if custom_sound_path else [])
+            sounds_list = []
+            for snd in raw_sounds:
+                if snd == 'C' and c_paths:
+                    for cp in c_paths:
+                        if cp and os.path.exists(cp):
+                            sounds_list.append(cp)
+                else:
+                    sounds_list.append(snd)
+
+            if not sounds_list:
+                sounds_list = ['B']
+
+            replacement_segment = load_censor_sound(
+                sounds_list[0], actual_duration, media.frame_rate, media.channels, custom_sound_path, volume_change, progress_callback, loop_sound=loop_censor_sound
+            )
+            for snd in sounds_list[1:]:
+                over_seg = load_censor_sound(
+                    snd, actual_duration, media.frame_rate, media.channels, custom_sound_path, volume_change, progress_callback, loop_sound=loop_censor_sound
+                )
+                replacement_segment = replacement_segment.overlay(over_seg)
+
+            replacement_segment = replacement_segment.set_sample_width(media.sample_width)
+
+            if overlap_censor:
+                orig_segment = media[actual_start:actual_end]
+                if marked_audio_volume <= 0:
+                    orig_segment = AudioSegment.silent(duration=actual_duration, frame_rate=media.frame_rate, channels=media.channels)
+                elif marked_audio_volume < 100:
+                    ratio = max(0.0001, float(marked_audio_volume) / 100.0)
+                    db_reduction = 20.0 * math.log10(ratio)
+                    orig_segment = orig_segment + db_reduction
+
+                censored_segment = orig_segment.overlay(replacement_segment)
+            else:
+                censored_segment = replacement_segment
+
+        elif mode == 'silence':
+            censored_segment = AudioSegment.silent(duration=actual_duration, frame_rate=media.frame_rate, channels=media.channels)
+        else:
+            continue
+
+        censored_segment = censored_segment.set_sample_width(media.sample_width).set_frame_rate(media.frame_rate).set_channels(media.channels)
+
+        bleeped_media = (
+            bleeped_media[:actual_start] +
+            censored_segment +
+            bleeped_media[actual_end:]
+        )
+
+        progress_callback.emit(f"Applied '{mode}' censoring to segment [{actual_start/1000:.2f}s - {actual_end/1000:.2f}s]")
+        progress_value_callback.emit(int(50 + ((i + 1) / total_segments) * 50))
+
+    old_stdout, old_stderr = sys.stdout, sys.stderr
+    try:
+        with open(os.devnull, 'w', encoding='utf-8') as devnull:
+            sys.stdout = devnull
+            sys.stderr = devnull
+            bleeped_media.export(output_file_path, format=output_format, parameters=export_parameters)
+    except Exception:
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
+        bleeped_media.export(output_file_path, format=output_format, parameters=export_parameters)
+    finally:
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
+    
+    del bleeped_media, media
+    gc.collect()
+
+    progress_callback.emit(f"Censored media saved successfully to: {output_file_path}")
+    progress_value_callback.emit(100)
+    return output_file_path
+
+def generate_srt_file(transcription_result: Dict[str, Any], full_log: List[Dict[str, Any]], file_path: str, censor_profane: bool) -> str:
+    # --- MODIFICATION START: Removed MIN_SEGMENT_DURATION_MS filter ---
+    base_name, _ = os.path.splitext(file_path)
+    suffix = "_transcript_CLEAN.srt" if censor_profane else "_transcript_RAW.srt"
+    output_path = f"{base_name}{suffix}"
+
+    profanity_map = {}
+    # Use the full log to map profanity status by word timestamp
+    for entry in full_log:
+        profanity_map[(entry['start_ms'], entry['end_ms'], entry['word'])] = entry['is_profane']
+
+    srt_content = []
+
+    srt_index = 1
+    for segment in transcription_result.get("segments", []):
+        start_ms = int(segment.get('start', 0.0) * 1000)
+        end_ms = int(segment.get('end', 0.0) * 1000)
+
+        segment_words = []
+        is_segment_empty = True # Check if any word was actually added
+
+        for word_info in segment.get("words", []):
+            if isinstance(word_info, dict) and 'word' in word_info:
+                word = word_info['word'].strip()
+                w_start_ms = int(word_info['start'] * 1000)
+                w_end_ms = int(word_info['end'] * 1000)
+            else:
+                continue
+
+            is_profane = profanity_map.get((w_start_ms, w_end_ms, word), False)
+
+            if censor_profane and is_profane:
+                segment_words.append(MEDIA_TRANSCRIPT_REPLACEMENT)
+            else:
+                segment_words.append(word)
+                
+            is_segment_empty = False # A transcribed word was processed
+
+        text = " ".join(segment_words).strip()
+
+        # REMOVED original check: if end_ms - start_ms >= MIN_SEGMENT_DURATION_MS and text:
+        # NEW check: Only proceed if there is non-empty text (which ensures all words are present)
+        if text and not is_segment_empty:
+            srt_content.append(f"{srt_index}")
+            srt_content.append(f"{format_time_srt(start_ms)} --> {format_time_srt(end_ms)}")
+            srt_content.append(f"{text}\n")
+            srt_index += 1
+
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write("\n".join(srt_content))
+
+    return output_path
+    # --- MODIFICATION END ---
+
+def generate_plain_text_file(transcription_result: Dict[str, Any], full_log: List[Dict[str, Any]], file_path: str, censor_profane: bool) -> str:
+    base_name, _ = os.path.splitext(file_path)
+    suffix = "_conversation_CLEAN.txt" if censor_profane else "_conversation_RAW.txt"
+    output_path = f"{base_name}{suffix}"
+
+    profanity_map = {}
+    for entry in full_log:
+        profanity_map[(entry['start_ms'], entry['end_ms'], entry['word'])] = entry['is_profane']
+
+    final_text_lines = []
+
+    for segment in transcription_result.get("segments", []):
+        segment_words = []
+        for word_info in segment.get("words", []):
+            if isinstance(word_info, dict) and 'word' in word_info:
+                word = word_info['word'].strip()
+                w_start_ms = int(word_info['start'] * 1000)
+                w_end_ms = int(word_info['end'] * 1000)
+            else:
+                continue
+
+            is_profane = profanity_map.get((w_start_ms, w_end_ms, word), False)
+
+            if censor_profane and is_profane:
+                segment_words.append(MEDIA_TRANSCRIPT_REPLACEMENT)
+            else:
+                segment_words.append(word)
+
+        if segment_words:
+            sentence = " ".join(segment_words).strip()
+            if censor_profane:
+                detox_res = end_to_end_detoxifier(sentence, threshold=DEFAULT_TOXICITY_THRESHOLD)
+                sentence = detox_res.get("detoxified_text", sentence)
+            final_text_lines.append(sentence)
+
+    text_content = "\n".join(final_text_lines)
+
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write(text_content)
+
+    return output_path
+
+
