@@ -117,30 +117,13 @@ def render_toxicity_tab() -> None:
         st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
         
 
-        st.markdown(
-            """
-            <style>
-            .stSlider, div[data-testid="stSlider"], div[data-testid="stSlider"] > div {
-                direction: ltr !important;
-                text-align: left !important;
-            }
-            div[data-testid="stSlider"] [data-baseweb="slider"] {
-                direction: ltr !important;
-            }
-            div[data-testid="stSlider"] [role="slider"] {
-                direction: ltr !important;
-            }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        threshold = st.slider(
+        threshold = st.number_input(
             "Toxicity Threshold",
             min_value=0.0,
             max_value=1.0,
             value=0.60,
             step=0.05,
+            format="%.2f",
             help="Comments scoring above this threshold get rewritten by the LLM.",
         )
 
