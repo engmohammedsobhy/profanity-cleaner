@@ -391,9 +391,15 @@ def apply_vad_filtering(input_path: str, progress_callback: Any) -> str:
     progress_callback.emit(f"Applying VAD to filter speech segments...")
 
     try:
-        import warnings
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", message="In 2.9, this function's implementation will be changed to use torchaudio.load with torchcodec")
+        if 'soundfile' in sys.modules:
+            import soundfile as sf
+            data, sr = sf.read(input_path, dtype='float32')
+            audio_tensor = torch.from_numpy(data)
+            if audio_tensor.ndim == 1:
+                audio_tensor = audio_tensor.unsqueeze(0)
+            else:
+                audio_tensor = audio_tensor.T
+        else:
             audio_tensor, sr = torchaudio.load(input_path)
 
         if sr != VAD_SAMPLE_RATE:
@@ -486,6 +492,14 @@ def load_audio_samples(audio_path: str) -> Any:
         pass
 
     return audio_path
+
+try:
+    import whisper
+    import whisper.audio
+    whisper.load_audio = load_audio_samples
+    whisper.audio.load_audio = load_audio_samples
+except Exception:
+    pass
 
 
 def transcribe_audio(audio_path: str, progress_callback: Any) -> Dict[str, Any]:
