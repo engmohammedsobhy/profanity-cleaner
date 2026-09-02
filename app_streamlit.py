@@ -206,8 +206,20 @@ def render_media_tab() -> None:
     with options_col:
         with st.container(border=True):
             st.markdown("### Configuration")
-            asr_label = st.radio("ASR Model", list(workflows.ASR_MODELS.keys()), index=1, horizontal=True)
-            mode = st.radio("Censor Mode", ["sound", "silence"], index=0, horizontal=True)
+            media_rating_preset = st.selectbox(
+                "Profanity Severity Preset",
+                options=workflows.RATING_PRESETS,
+                index=0,
+                help="Default (strict censor), PG-13 (allows mild oaths), R (allows mild & moderate swearing), NC-17 (allows all except severe slurs).",
+            )
+            asr_label = st.selectbox("ASR Model (Whisper)", list(workflows.ASR_MODELS.keys()), index=1, help="Whisper model size: larger models offer higher transcription accuracy.")
+            
+            c1, c2 = st.columns(2)
+            with c1:
+                mode = st.radio("Censor Mode", ["sound", "silence"], index=0, horizontal=True)
+            with c2:
+                use_vad = st.checkbox("VAD Speech Filtering", value=True, help="Filter out non-speech segments using Silero VAD before transcription.")
+            
             sound_map = {"Sine wave": "B", "Quack": "Q", "Dolphin": "D", "Triggered": "T", "Custom": "C"}
             sound_label = st.selectbox("Sound Choice", list(sound_map.keys()), disabled=mode != "sound")
             
@@ -218,6 +230,15 @@ def render_media_tab() -> None:
                     custom_sound_path = workflows.save_uploaded_file(uploaded_custom_sound, "profanity_cleaner_custom")
                     
             censor_volume = st.slider("Censor Sound Volume (dB)", min_value=-30.0, max_value=30.0, value=0.0, step=1.0, disabled=mode != "sound", help="Adjust the volume of the censor sound relative to the original audio.")
+
+        with st.container(border=True):
+            st.markdown("### Toxicity Moderation (ML)")
+            t_col1, t_col2 = st.columns(2)
+            with t_col1:
+                analyze_toxicity = st.checkbox("Analyze Media Toxicity", value=False)
+            with t_col2:
+                censor_toxic = st.checkbox("Censor Toxic Segments", value=False, disabled=not analyze_toxicity)
+            media_toxicity_threshold = st.slider("Media Toxicity Threshold", 0.0, 1.0, workflows.DEFAULT_TOXICITY_THRESHOLD, 0.01, disabled=not analyze_toxicity)
 
         with st.container(border=True):
             st.markdown("### Transcript Output")
@@ -250,14 +271,16 @@ def render_media_tab() -> None:
         try:
             file_path = workflows.save_uploaded_file(uploaded_media, "profanity_cleaner_media")
             options = {
+                "rating_preset": media_rating_preset,
                 "asr_model": workflows.ASR_MODELS[asr_label],
                 "mode": mode,
+                "use_vad": use_vad,
                 "sound": sound_map[sound_label],
                 "custom_sound_path": custom_sound_path,
                 "censor_volume": censor_volume,
-                "censor_toxic": False,
-                "analyze_toxicity": False,
-                "toxicity_threshold": workflows.DEFAULT_TOXICITY_THRESHOLD,
+                "censor_toxic": censor_toxic,
+                "analyze_toxicity": analyze_toxicity,
+                "toxicity_threshold": media_toxicity_threshold,
                 "export_raw_txt": export_raw_txt,
                 "export_clean_txt": export_clean_txt,
                 "export_raw_srt": export_raw_srt,
@@ -279,6 +302,16 @@ def render_media_tab() -> None:
 
 
 def text_options_panel() -> Dict[str, Any]:
+    with st.container(border=True):
+        st.markdown("### Severity Rating Preset")
+        text_rating_preset = st.selectbox(
+            "Profanity Severity Preset",
+            options=workflows.RATING_PRESETS,
+            index=0,
+            key="text_rating_preset",
+            help="Default (strict censor), PG-13 (allows mild oaths), R (allows mild & moderate swearing), NC-17 (allows all except severe slurs).",
+        )
+
     with st.container(border=True):
         st.markdown("### Cleaning Rules & Style")
         rules_col, style_col, prep_col = st.columns([0.9, 0.85, 1.1])
@@ -311,6 +344,7 @@ def text_options_panel() -> Dict[str, Any]:
             blacklist = st.text_area("Text Blacklist", placeholder="words to force-censor", height=82)
 
     return {
+        "rating_preset": text_rating_preset,
         "clean_standard": clean_standard,
         "clean_obfuscated": clean_obfuscated,
         "clean_toxicity": clean_toxicity,
@@ -362,12 +396,12 @@ def render_text_result(result: Dict[str, Any]) -> None:
 
     token_tab, flagged_tab, sent_tab, vocab_tab = st.tabs(["Word Tokens", "Flagged", "Sentences", "Vocabulary"])
     with token_tab:
-        token_keys = ["index", "text", "normalized", "lemma", "pos_guess", "token_type", "start", "end", "is_stopword", "detection_source"]
+        token_keys = ["index", "text", "normalized", "lemma", "pos_guess", "severity_category", "token_type", "start", "end", "is_stopword", "detection_source"]
         st.dataframe(compact_rows(result.get("word_tokens", []), token_keys), use_container_width=True, hide_index=True)
     with flagged_tab:
         flagged = result.get("flagged_tokens", [])
         if flagged:
-            st.dataframe(compact_rows(flagged, ["text", "normalized", "lemma", "pos_guess", "is_obfuscated", "is_blacklisted", "detection_source", "replacement"]), use_container_width=True, hide_index=True)
+            st.dataframe(compact_rows(flagged, ["text", "normalized", "lemma", "pos_guess", "severity_category", "is_obfuscated", "is_blacklisted", "detection_source", "replacement"]), use_container_width=True, hide_index=True)
         else:
             st.info("No flagged tokens.")
     with sent_tab:

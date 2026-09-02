@@ -51,7 +51,11 @@ TEXT_EXTENSIONS = (".txt", ".docx")
 ASR_MODELS = {
     "tiny.en": "tiny.en",
     "base.en": "base.en",
+    "small.en": "small.en",
+    "medium.en": "medium.en",
+    "large": "large",
 }
+RATING_PRESETS = ["Default", "PG", "PG-13", "R", "NC-17"]
 
 LEET_TRANSLATION = str.maketrans({"0": "o", "1": "i", "!": "i", "3": "e", "4": "a", "5": "s", "7": "t", "8": "b", "$": "s", "@": "a", "|": "i", "^": "a"})
 TOKEN_RE = re.compile(r"https?://[^\s]+|www\.[^\s]+|[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}|[A-Za-z0-9_!$|@^]+(?:['-][A-Za-z0-9_!$|@^]+)*|\d+(?:[.,]\d+)*|\s+|[^\w\s]", re.UNICODE)
@@ -96,6 +100,7 @@ class TokenAnalysis:
     is_profane: bool
     is_obfuscated: bool
     detection_source: str
+    severity_category: str = "NONE"
     replacement: str = ""
     is_censored: bool = False
 
@@ -201,6 +206,41 @@ def load_word_list(text: str) -> Set[str]:
     return {normalized for normalized in (normalize_for_profanity(part) for part in re.findall(r"\S+", text or "")) if normalized}
 
 
+PROFANITY_DICTIONARY_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "profanity_dictionary.json")
+
+def load_profanity_dictionary() -> Dict[str, Any]:
+    if os.path.exists(PROFANITY_DICTIONARY_PATH):
+        try:
+            with open(PROFANITY_DICTIONARY_PATH, "r", encoding="utf-8") as handle:
+                return json.load(handle)
+        except Exception as exc:
+            print(f"Failed to load profanity_dictionary.json: {exc}")
+    return {}
+
+PROFANITY_DICTIONARY = load_profanity_dictionary()
+
+PROFANITY_SEVERITY_MAP: Dict[str, str] = {}
+if PROFANITY_DICTIONARY:
+    for cat_name, cat_data in PROFANITY_DICTIONARY.get("categories", {}).items():
+        for w in cat_data.get("words", []):
+            PROFANITY_SEVERITY_MAP[w.lower()] = cat_name
+
+
+def get_rating_preset_whitelist(preset: str) -> Set[str]:
+    categories = PROFANITY_DICTIONARY.get("categories", {})
+    mild = set(categories.get("MILD", {}).get("words", []))
+    moderate = set(categories.get("MODERATE", {}).get("words", []))
+    strong = set(categories.get("STRONG", {}).get("words", []))
+    
+    if preset == "PG-13":
+        return {normalize_for_profanity(w) for w in mild if normalize_for_profanity(w)}
+    elif preset == "R":
+        return {normalize_for_profanity(w) for w in (mild | moderate) if normalize_for_profanity(w)}
+    elif preset == "NC-17":
+        return {normalize_for_profanity(w) for w in (mild | moderate | strong) if normalize_for_profanity(w)}
+    return set()
+
+
 def safe_contains_profanity(value: str) -> bool:
     if profanity is None or not value:
         return False
@@ -219,15 +259,30 @@ def classify_profanity_token(word: str, whitelist: Set[str], blacklist: Set[str]
         "is_whitelisted": False,
         "is_blacklisted": False,
         "detection_source": "clean",
+        "severity_category": PROFANITY_SEVERITY_MAP.get(normalized, PROFANITY_SEVERITY_MAP.get((word or "").lower(), "NONE")),
     }
     if normalized and normalized in whitelist:
         result["is_whitelisted"] = True
         result["detection_source"] = "whitelist"
+        result["severity_category"] = "WHITELISTED"
         return result
+
+    if normalized:
+        _SUFFIXES = ("ing", "ings", "tion", "tions", "ed", "er", "ers", "est", "ly", "ish", "ness", "s")
+        for suffix in _SUFFIXES:
+            if normalized.endswith(suffix):
+                root = normalized[:-len(suffix)]
+                if len(root) >= 3 and root in whitelist:
+                    result["is_whitelisted"] = True
+                    result["detection_source"] = "whitelist_inflection"
+                    result["severity_category"] = "WHITELISTED"
+                    return result
     if normalized and normalized in blacklist:
         result["is_profane"] = True
         result["is_blacklisted"] = True
         result["detection_source"] = "blacklist"
+        if result["severity_category"] == "NONE":
+            result["severity_category"] = "CUSTOM_BLACKLIST"
         return result
 
     original_hit = use_standard and safe_contains_profanity(word)
@@ -369,6 +424,7 @@ def analyze_tokens(text: str, whitelist: Set[str], blacklist: Set[str], use_obfu
             is_profane=bool(info["is_profane"]),
             is_obfuscated=bool(info["is_obfuscated"]),
             detection_source=str(info["detection_source"]),
+            severity_category=str(info.get("severity_category", "NONE")),
         ))
     return rows
 
@@ -481,9 +537,13 @@ def summarize_text(raw_text: str, processed_text: str, cleaned_text: str, tokens
 def process_text_content(raw_text: str, options: Dict[str, Any], file_path: str = "", progress_callback: Any = None) -> Dict[str, Any]:
     if not raw_text or not raw_text.strip():
         raise ValueError("No text provided.")
-    whitelist = load_word_list(options.get("whitelist_text", ""))
+    rating_preset = options.get("rating_preset", "Default")
+    preset_whitelist = get_rating_preset_whitelist(rating_preset)
+    whitelist = load_word_list(options.get("whitelist_text", "")) | preset_whitelist
     blacklist = load_word_list(options.get("blacklist_text", ""))
-    emit(progress_callback, f"Loaded {len(whitelist)} whitelist word(s).")
+    if preset_whitelist:
+        emit(progress_callback, f"Rating preset [{rating_preset}] applied ({len(preset_whitelist)} whitelisted words).")
+    emit(progress_callback, f"Loaded {len(whitelist)} total whitelist word(s).")
     emit(progress_callback, f"Loaded {len(blacklist)} blacklist word(s).")
     if profanity is None and (options.get("clean_standard") or options.get("clean_obfuscated")):
         emit(progress_callback, "better_profanity is unavailable; custom blacklist still works.")
@@ -702,13 +762,22 @@ def process_media_file(file_path: str, options: Dict[str, Any], progress_callbac
     start_time = time.time()
     temp_files: List[str] = []
 
-    b.GLOBAL_WHITELIST_WORDS = b.load_word_list_from_text(options.get("whitelist_text", ""))
+    rating_preset = options.get("rating_preset", "Default")
+    preset_whitelist = get_rating_preset_whitelist(rating_preset)
+    user_whitelist = b.load_word_list_from_text(options.get("whitelist_text", ""))
+    b.GLOBAL_WHITELIST_WORDS = user_whitelist | preset_whitelist
     b.GLOBAL_BLACKLIST_WORDS = b.load_word_list_from_text(options.get("blacklist_text", ""))
-    emit(progress_callback, f"Loaded {len(b.GLOBAL_WHITELIST_WORDS)} whitelist word(s).")
+    if preset_whitelist:
+        emit(progress_callback, f"Rating preset [{rating_preset}] applied ({len(preset_whitelist)} whitelisted words).")
+    emit(progress_callback, f"Loaded {len(b.GLOBAL_WHITELIST_WORDS)} total whitelist word(s).")
     emit(progress_callback, f"Loaded {len(b.GLOBAL_BLACKLIST_WORDS)} blacklist word(s).")
 
     asr_model = options.get("asr_model", "base.en")
-    analyze_toxicity = False
+    analyze_toxicity = bool(options.get("analyze_toxicity", False))
+    censor_toxic = bool(options.get("censor_toxic", False))
+    use_vad = bool(options.get("use_vad", True))
+    toxicity_threshold = float(options.get("toxicity_threshold", DEFAULT_TOXICITY_THRESHOLD))
+
     b.load_ml_resources(progress_callback, analyze_toxicity, asr_model)
 
     emit(progress_value_callback, 5)
@@ -717,15 +786,18 @@ def process_media_file(file_path: str, options: Dict[str, Any], progress_callbac
         temp_files.append(pre_converted)
 
     emit(progress_value_callback, 10)
-    vad_path = b.apply_vad_filtering(pre_converted, progress_callback)
+    if use_vad:
+        vad_path = b.apply_vad_filtering(pre_converted, progress_callback)
+    else:
+        vad_path = pre_converted
+        emit(progress_callback, "VAD speech filtering bypassed by user configuration.")
     if vad_path != pre_converted:
         temp_files.append(vad_path)
 
     emit(progress_value_callback, 15)
     transcription = b.transcribe_audio(vad_path, progress_callback)
     emit(progress_callback, "Generating word-level log and transcript exports.")
-    threshold = 0.0
-    log = b.generate_conversation_log(transcription, threshold, analyze_toxicity)
+    log = b.generate_conversation_log(transcription, toxicity_threshold, analyze_toxicity)
 
     base, _ = os.path.splitext(file_path)
     log_path = None
@@ -750,7 +822,7 @@ def process_media_file(file_path: str, options: Dict[str, Any], progress_callbac
         base,
         log,
         options.get("mode", "sound"),
-        False,
+        censor_toxic,
         options.get("sound", "B"),
         options.get("custom_sound_path", ""),
         options.get("censor_volume", 0.0),

@@ -64,6 +64,19 @@ TRIGGERED_SOUND_PATH = os.path.join(CENSOR_SOUND_DIR, "triggered.wav")
 MEDIA_EXTENSIONS = ('.mp4', '.mkv', '.avi', '.mov', '.mp3', '.wav', '.m4a')
 TEXT_EXTENSIONS = ('.txt', '.docx')
 
+PROFANITY_DICTIONARY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "profanity_dictionary.json")
+
+def load_profanity_dictionary_json() -> Dict[str, Any]:
+    if os.path.exists(PROFANITY_DICTIONARY_FILE):
+        try:
+            with open(PROFANITY_DICTIONARY_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Failed to load profanity dictionary JSON: {e}")
+    return {}
+
+PROFANITY_DICTIONARY = load_profanity_dictionary_json()
+
 try:#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
     profanity.load_censor_words()
 except NameError:
@@ -185,6 +198,15 @@ def check_for_profanity(word: str, use_obfuscation_check: bool) -> bool: #------
     
     if normalized_word and normalized_word in GLOBAL_WHITELIST_WORDS:
         return False
+
+    # Inflection whitelist match: check if the base/root of the word is whitelisted
+    if normalized_word:
+        _SUFFIXES = ('ing', 'ings', 'tion', 'tions', 'ed', 'er', 'ers', 'est', 'ly', 'ish', 'ness', 's')
+        for suffix in _SUFFIXES:
+            if normalized_word.endswith(suffix):
+                root = normalized_word[:-len(suffix)]
+                if len(root) >= 3 and root in GLOBAL_WHITELIST_WORDS:
+                    return False
 
     if normalized_word and normalized_word in GLOBAL_BLACKLIST_WORDS:
         return True
