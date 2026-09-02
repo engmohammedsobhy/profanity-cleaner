@@ -217,6 +217,32 @@ if PROFANITY_DICTIONARY:
             PROFANITY_SEVERITY_MAP[w.lower()] = cat_name
 
 
+WORD_CATEGORIES: Dict[str, Set[str]] = {
+    "Mild oaths & exclamations": {"god", "damn", "dammit", "damnit", "dang", "darn", "bloody", "hell", "heck", "geez", "gosh", "crap", "crappy", "blimey", "fudge", "shoot", "sugar", "omg"},
+    "Mild insults": {"idiot", "dumb", "dumbass", "dummy", "loser", "jerk", "moron", "dork", "dweeb", "lame", "wimp", "airhead", "blockhead", "bonehead", "dimwit", "doofus", "dope", "goof", "goofball", "knucklehead", "meathead", "nitwit", "numbskull"},
+    "Kill, suck": {"kill", "killed", "killer", "killing", "kills", "suck", "sucked", "sucker", "sucking", "sucks"},
+    "Body terms": {"butt", "butthead", "boob", "boobs", "tushy", "arse", "panties", "panty", "poop"},
+    "Mild Corn & Sexual terms": {"erotic", "escort", "hardcore", "hooker", "kinky", "kinkster", "lovemaking", "nude", "nudity", "playboy", "sex", "sexy", "swinger", "topless", "upskirt"},
+    "Moderate profane": {"shit", "shite", "shitty", "shithead", "bitch", "bitches", "bitching", "bitchy", "bastard", "asshole", "arsehole", "piss", "pissed", "pisser", "bullshit", "dipshit", "prick", "cock", "dick", "balls", "bollocks", "bugger", "twat", "wanker", "whore", "slut", "sluts", "camslut", "camwhore"},
+    "Strong profane": {"fuck", "fucking", "fucker", "fuckin", "fuckoff", "fuckyou", "motherfucker", "motherfucking", "cunt", "thundercunt", "cum", "cumshot", "cunnilingus", "fellatio", "gangbang", "orgy", "rape", "raping", "rapist", "dildo"},
+    "Extreme / Slurs": {"nigger", "nigga", "fag", "faggot", "dyke", "retard", "kike", "spic", "chink", "tranny", "wetback", "beaner", "coon", "darkie", "raghead", "towelhead"},
+}
+
+
+def get_category_whitelist(selected_categories: Optional[Sequence[str]]) -> Set[str]:
+    if selected_categories is None:
+        return set()
+    selected_set = set(selected_categories)
+    allowed_words: Set[str] = set()
+    for cat_name, words in WORD_CATEGORIES.items():
+        if cat_name not in selected_set:
+            for w in words:
+                norm = normalize_for_profanity(w)
+                if norm:
+                    allowed_words.add(norm)
+    return allowed_words
+
+
 def get_rating_preset_whitelist(preset: str) -> Set[str]:
     categories = PROFANITY_DICTIONARY.get("categories", {})
     mild = set(categories.get("MILD", {}).get("words", []))
@@ -230,6 +256,7 @@ def get_rating_preset_whitelist(preset: str) -> Set[str]:
     elif preset == "NC-17":
         return {normalize_for_profanity(w) for w in (mild | moderate | strong) if normalize_for_profanity(w)}
     return set()
+
 
 
 def safe_contains_profanity(value: str) -> bool:
@@ -456,12 +483,15 @@ def summarize_text(raw_text: str, processed_text: str, cleaned_text: str, tokens
 def process_text_content(raw_text: str, options: Dict[str, Any], file_path: str = "", progress_callback: Any = None) -> Dict[str, Any]:
     if not raw_text or not raw_text.strip():
         raise ValueError("No text provided.")
-    rating_preset = options.get("rating_preset", "Default")
-    preset_whitelist = get_rating_preset_whitelist(rating_preset)
+    selected_categories = options.get("selected_categories")
+    if selected_categories is not None:
+        preset_whitelist = get_category_whitelist(selected_categories)
+    else:
+        preset_whitelist = get_rating_preset_whitelist(options.get("rating_preset", "Default"))
     whitelist = load_word_list(options.get("whitelist_text", "")) | preset_whitelist
     blacklist = load_word_list(options.get("blacklist_text", ""))
     if preset_whitelist:
-        emit(progress_callback, f"Rating preset [{rating_preset}] applied ({len(preset_whitelist)} whitelisted words).")
+        emit(progress_callback, f"Word category filter applied ({len(preset_whitelist)} whitelisted words).")
     emit(progress_callback, f"Loaded {len(whitelist)} total whitelist word(s).")
     emit(progress_callback, f"Loaded {len(blacklist)} blacklist word(s).")
     if profanity is None and (options.get("clean_standard") or options.get("clean_obfuscated")):
@@ -676,13 +706,16 @@ def process_media_file(file_path: str, options: Dict[str, Any], progress_callbac
     start_time = time.time()
     temp_files: List[str] = []
 
-    rating_preset = options.get("rating_preset", "Default")
-    preset_whitelist = get_rating_preset_whitelist(rating_preset)
+    selected_categories = options.get("selected_categories")
+    if selected_categories is not None:
+        preset_whitelist = get_category_whitelist(selected_categories)
+    else:
+        preset_whitelist = get_rating_preset_whitelist(options.get("rating_preset", "Default"))
     user_whitelist = b.load_word_list_from_text(options.get("whitelist_text", ""))
     b.GLOBAL_WHITELIST_WORDS = user_whitelist | preset_whitelist
     b.GLOBAL_BLACKLIST_WORDS = b.load_word_list_from_text(options.get("blacklist_text", ""))
     if preset_whitelist:
-        emit(progress_callback, f"Rating preset [{rating_preset}] applied ({len(preset_whitelist)} whitelisted words).")
+        emit(progress_callback, f"Word category filter applied ({len(preset_whitelist)} whitelisted words).")
     emit(progress_callback, f"Loaded {len(b.GLOBAL_WHITELIST_WORDS)} total whitelist word(s).")
     emit(progress_callback, f"Loaded {len(b.GLOBAL_BLACKLIST_WORDS)} blacklist word(s).")
 

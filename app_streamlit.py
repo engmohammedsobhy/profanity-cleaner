@@ -449,6 +449,25 @@ def render_media_result(result: Dict[str, Any]) -> None:
             )
 
 
+def render_category_selector(key_prefix: str) -> List[str]:
+    st.markdown("<div class='section-label'>Word Categories to Censor</div>", unsafe_allow_html=True)
+    cat_keys = list(workflows.WORD_CATEGORIES.keys())
+    col1, col2 = st.columns(2)
+    selected = []
+    for idx, cat_name in enumerate(cat_keys):
+        col = col1 if idx % 2 == 0 else col2
+        with col:
+            is_checked = st.checkbox(
+                cat_name,
+                value=True,
+                key=f"{key_prefix}_cat_{idx}",
+                help=f"Words included in {cat_name}: {', '.join(list(workflows.WORD_CATEGORIES[cat_name])[:5])}...",
+            )
+            if is_checked:
+                selected.append(cat_name)
+    return selected
+
+
 def render_media_tab() -> None:
     input_col, options_col = st.columns([0.45, 0.55], gap="medium")
 
@@ -495,21 +514,16 @@ def render_media_tab() -> None:
         ])
 
         with tab_mod:
-            mod_c1, mod_c2 = st.columns(2)
-            with mod_c1:
-                media_rating_preset = st.selectbox(
-                    "Severity Rating Preset",
-                    options=workflows.RATING_PRESETS,
-                    index=0,
-                    help="Default (strict censor), PG-13 (allows mild oaths), R (allows mild & moderate swearing), NC-17 (allows all except severe slurs).",
-                )
-            with mod_c2:
+            c1, _c2 = st.columns([0.5, 0.5])
+            with c1:
                 asr_label = st.selectbox(
                     "ASR Model (Whisper)",
                     list(workflows.ASR_MODELS.keys()),
                     index=1,
                     help="Whisper speech recognition model size. Larger models provide higher transcription accuracy.",
                 )
+
+            media_selected_categories = render_category_selector("media")
 
             st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
             wl_col, bl_col = st.columns(2)
@@ -621,7 +635,8 @@ def render_media_tab() -> None:
         try:
             file_path = workflows.save_uploaded_file(uploaded_media, "profanity_cleaner_media")
             options = {
-                "rating_preset": media_rating_preset,
+                "selected_categories": media_selected_categories,
+                "rating_preset": "Default",
                 "asr_model": workflows.ASR_MODELS[asr_label],
                 "mode": mode,
                 "sound": sound_choice_keys if mode == "multiple_sounds" else (sound_choice_keys[0] if sound_choice_keys else "B"),
@@ -739,13 +754,7 @@ def render_text_tab() -> None:
         ])
 
         with tab_mod:
-            text_rating_preset = st.selectbox(
-                "Severity Rating Preset",
-                options=workflows.RATING_PRESETS,
-                index=0,
-                key="text_rating_preset",
-                help="Default (strict censor), PG-13 (allows mild oaths), R (allows mild & moderate swearing), NC-17 (allows all except severe slurs).",
-            )
+            text_selected_categories = render_category_selector("text")
             st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
             wl_c, bl_c = st.columns(2)
             with wl_c:
@@ -773,7 +782,8 @@ def render_text_tab() -> None:
                 remove_emails = st.checkbox("Remove Emails", value=False)
 
         options = {
-            "rating_preset": text_rating_preset,
+            "selected_categories": text_selected_categories,
+            "rating_preset": "Default",
             "clean_standard": clean_standard,
             "clean_obfuscated": clean_obfuscated,
             "censor_style": style,
