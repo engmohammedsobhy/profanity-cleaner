@@ -388,24 +388,29 @@ def load_ml_resources(progress_callback: Any, load_toxicity: bool, asr_model_nam
 
         if VAD_MODEL is None and asr_model_name:
             try:
-                progress_callback.emit("Loading/Downloading VAD model (Speech filtering), its only one time installtion")
-                VAD_MODEL, VAD_UTILS_CONTAINER = torch.hub.load(
+                progress_callback.emit("Loading VAD model (Speech filtering)...")
+                sys.stdout = original_stdout
+                vad_model, vad_utils_container = torch.hub.load(
                     repo_or_dir='snakers4/silero-vad',
                     model='silero_vad',
                     force_reload=False,
-                    trust_repo=True
+                    trust_repo=True,
+                    onnx=False
                 )
 
-                if isinstance(VAD_UTILS_CONTAINER, tuple):
-                    VAD_UTILS_REFERENCE = VAD_UTILS_CONTAINER[1]
+                if isinstance(vad_utils_container, tuple):
+                    VAD_UTILS_REFERENCE = vad_utils_container[1]
                 else:
-                    VAD_UTILS_REFERENCE = VAD_UTILS_CONTAINER
+                    VAD_UTILS_REFERENCE = vad_utils_container
 
+                VAD_MODEL = vad_model
                 VAD_MODEL.to(TOXICITY_DEVICE)
                 progress_callback.emit("VAD Model loaded successfully.")
             except Exception as e:
-                sys.stdout = original_stdout
-                raise Exception(f"Failed to load VAD model. Error: {e}")
+                VAD_MODEL = None
+                progress_callback.emit(f"VAD model optional filtering skipped ({e}). Proceeding directly with Whisper ASR.")
+            finally:
+                sys.stdout = log_stream
 
     finally:
         sys.stdout = original_stdout
