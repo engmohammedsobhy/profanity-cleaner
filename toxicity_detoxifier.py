@@ -2,11 +2,27 @@ import os
 import re
 import string
 import numpy as np
-import tensorflow as tf
-from groq import Groq
-import nltk
-from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
+try:
+    import tensorflow as tf
+except ImportError:
+    tf = None
+
+try:
+    from groq import Groq
+except ImportError:
+    Groq = None
+
+try:
+    import nltk
+    from nltk.corpus import stopwords
+    from nltk.stem import WordNetLemmatizer
+    nltk.download('stopwords', quiet=True)
+    nltk.download('wordnet', quiet=True)
+    lemmatizer = WordNetLemmatizer()
+    custom_stopwords = set(stopwords.words('english')) - {'not', 'no', 'nor', 'against', 'you', 'your', 'me'}
+except Exception:
+    lemmatizer = None
+    custom_stopwords = set()
 
 try:
     from dotenv import load_dotenv
@@ -23,13 +39,7 @@ if not GROQ_API_KEY:
     except Exception:
         pass
 
-client = Groq(api_key=GROQ_API_KEY)
-
-nltk.download('stopwords', quiet=True)
-nltk.download('wordnet', quiet=True)
-
-lemmatizer = WordNetLemmatizer()
-custom_stopwords = set(stopwords.words('english')) - {'not', 'no', 'nor', 'against', 'you', 'your', 'me'}
+client = Groq(api_key=GROQ_API_KEY) if Groq and GROQ_API_KEY else None
 
 def advanced_clean_text(text: str) -> str:
     text = str(text).lower()
@@ -44,7 +54,7 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(CURRENT_DIR, "toxicity_model.keras")
 
 try:
-    model = tf.keras.models.load_model(MODEL_PATH)
+    model = tf.keras.models.load_model(MODEL_PATH) if tf is not None else None
 except Exception as e:
     model = None
     print(f"Warning: Could not load toxicity model from {MODEL_PATH}: {e}")

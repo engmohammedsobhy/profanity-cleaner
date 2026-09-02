@@ -12,7 +12,12 @@ import platform
 import gc
 from typing import List, Dict, Any, Tuple, Set, Callable
 from urllib.parse import quote
-from toxicity_detoxifier import end_to_end_detoxifier
+try:
+    from toxicity_detoxifier import end_to_end_detoxifier
+except Exception as e:
+    print(f"INFO: toxicity_detoxifier optional import skipped: {e}")
+    end_to_end_detoxifier = None
+
 
 
 
