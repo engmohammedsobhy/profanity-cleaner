@@ -904,3 +904,42 @@ def process_media_file(file_path: str, options: Dict[str, Any], progress_callbac
         "transcription": transcription,
         "elapsed_seconds": round(elapsed, 2),
     }
+
+
+def transcribe_media_to_text(file_path: str, asr_model: str = "base.en", progress_callback: Any = None) -> str:
+    b = require_backend()
+    if asr_model in getattr(b, "ML_MODEL_CACHE", {}):
+        b.ASR_MODEL_KEY_CURRENT = asr_model
+    else:
+        b.load_ml_resources(progress_callback, False, asr_model)
+
+    temp_files: List[str] = []
+    try:
+        emit(progress_callback, "Converting media format for transcription...")
+        pre_converted = b.pre_convert_to_wav(file_path, progress_callback)
+        if pre_converted != file_path:
+            temp_files.append(pre_converted)
+
+        emit(progress_callback, "Applying voice activity detection (VAD)...")
+        vad_path = b.apply_vad_filtering(pre_converted, progress_callback)
+        if vad_path != pre_converted:
+            temp_files.append(vad_path)
+
+        emit(progress_callback, "Transcribing speech using Whisper ASR...")
+        transcription = b.transcribe_audio(vad_path, progress_callback)
+
+        extracted_text = ""
+        if isinstance(transcription, dict):
+            extracted_text = transcription.get("text", "").strip()
+            if not extracted_text and "segments" in transcription:
+                extracted_text = " ".join(seg.get("text", "").strip() for seg in transcription["segments"] if seg.get("text"))
+
+        return extracted_text
+    finally:
+        for temp_path in temp_files:
+            if os.path.exists(temp_path) and temp_path != file_path:
+                try:
+                    os.remove(temp_path)
+                except OSError:
+                    pass
+

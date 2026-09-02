@@ -748,12 +748,57 @@ def render_text_tab() -> None:
     
     with input_col:
         with st.container():
-            uploaded_text = st.file_uploader("Upload Text File", type=[ext.strip(".") for ext in workflows.TEXT_EXTENSIONS], key="text_upload", label_visibility="collapsed")
+            all_exts = [ext.strip(".") for ext in workflows.TEXT_EXTENSIONS + workflows.MEDIA_EXTENSIONS]
+            uploaded_file = st.file_uploader(
+                "Upload Text, Audio, or Video File",
+                type=all_exts,
+                key="text_page_upload",
+                label_visibility="collapsed",
+                help="Upload a text file (.txt, .docx) OR an audio/video file (.mp4, .mp3, .wav, .m4a, .mov, etc.) to transcribe into text.",
+            )
             uploaded_path = ""
             loaded_text = ""
-            if uploaded_text:
-                uploaded_path = workflows.save_uploaded_file(uploaded_text, "profanity_cleaner_text")
-                loaded_text = workflows.read_text_file(uploaded_path)
+            if uploaded_file:
+                uploaded_path = workflows.save_uploaded_file(uploaded_file, "profanity_cleaner_text_input")
+                ext = Path(uploaded_file.name).suffix.lower()
+                if ext in workflows.MEDIA_EXTENSIONS:
+                    _p1, media_box, _p2 = st.columns([0.05, 0.9, 0.05])
+                    with media_box:
+                        if ext in workflows.VIDEO_EXTENSIONS:
+                            st.video(uploaded_file)
+                        else:
+                            st.audio(uploaded_file)
+                    
+                    asr_label = st.selectbox(
+                        "Whisper ASR Model",
+                        list(workflows.ASR_MODELS.keys()),
+                        index=1,
+                        key="text_page_asr_model",
+                        help="Select Whisper model size for speech-to-text transcription.",
+                    )
+
+                    if st.button("Transcribe Speech to Text", type="secondary", use_container_width=True):
+                        progress_slot = st.progress(0)
+                        status = StreamlitStatus(progress_slot, "transcribe_text_logs")
+                        try:
+                            with st.spinner("Transcribing media speech to text..."):
+                                extracted = workflows.transcribe_media_to_text(
+                                    uploaded_path,
+                                    asr_model=workflows.ASR_MODELS[asr_label],
+                                    progress_callback=status,
+                                )
+                            if extracted:
+                                st.session_state["active_text_val"] = extracted
+                                st.success("Media speech transcribed to text!")
+                            else:
+                                st.warning("No spoken text detected in media file.")
+                        except Exception as exc:
+                            st.error(f"Transcription failed: {exc}")
+                else:
+                    loaded_text = workflows.read_text_file(uploaded_path)
+                    if loaded_text and st.session_state.get("last_uploaded_text_path") != uploaded_path:
+                        st.session_state["active_text_val"] = loaded_text
+                        st.session_state["last_uploaded_text_path"] = uploaded_path
 
             st.markdown("<div class='section-label'>Sample Presets</div>", unsafe_allow_html=True)
             sp_c1, sp_c2, sp_c3 = st.columns(3)
@@ -768,7 +813,7 @@ def render_text_tab() -> None:
                     st.session_state["active_text_val"] = "Artificial intelligence models analyze language patterns to promote safe and respectful digital communication."
 
             text_val = st.session_state.get("active_text_val") or loaded_text
-            raw_text = st.text_area("Input/Raw Text", value=text_val, height=200, placeholder="Enter or paste text here, or upload a text file above.", label_visibility="collapsed")
+            raw_text = st.text_area("Input/Raw Text", value=text_val, height=200, placeholder="Enter or paste text here, or upload a text, audio, or video file above.", label_visibility="collapsed")
 
             st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
             can_process = bool(raw_text.strip())
