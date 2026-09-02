@@ -50,8 +50,12 @@ ASR_MODELS = {
 }
 RATING_PRESETS = ["Default", "PG", "PG-13", "R", "NC-17"]
 
-LEET_TRANSLATION = str.maketrans({"0": "o", "1": "i", "!": "i", "3": "e", "4": "a", "5": "s", "7": "t", "8": "b", "$": "s", "@": "a", "|": "i", "^": "a"})
-TOKEN_RE = re.compile(r"https?://[^\s]+|www\.[^\s]+|[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}|[A-Za-z0-9_!$|@^]+(?:['-][A-Za-z0-9_!$|@^]+)*|\d+(?:[.,]\d+)*|\s+|[^\w\s]", re.UNICODE)
+LEET_TRANSLATION = str.maketrans({
+    "0": "o", "1": "i", "!": "i", "|": "i", "l": "i", "3": "e", "€": "e", "&": "e",
+    "4": "a", "@": "a", "^": "a", "5": "s", "$": "s", "z": "s", "7": "t", "+": "t",
+    "8": "b", "9": "g", "v": "u", "q": "g"
+})
+TOKEN_RE = re.compile(r"https?://[^\s]+|www\.[^\s]+|[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}|[A-Za-z0-9!@#$%^&*._|-]+|\s+|[^\w\s]", re.UNICODE)
 SENTENCE_RE = re.compile(r"\S.*?(?:[.!?]+(?=\s|$)|$)", re.DOTALL)
 CONTRACTIONS = {
     "ain't": "am not", "aren't": "are not", "can't": "cannot", "couldn't": "could not", "didn't": "did not",
@@ -164,6 +168,20 @@ def preprocess_text(text: str, options: Optional[Dict[str, bool]] = None) -> Tup
     options = options or {}
     processed = text or ""
     steps: List[str] = []
+
+    # Detect spaced-out obfuscated profanity e.g. "f u c k" or "s h i t"
+    spaced_pattern = re.compile(r"\b(?:[A-Za-z0-9!@#$%^&*]\s+){2,}[A-Za-z0-9!@#$%^&*]\b", re.IGNORECASE)
+    def handle_spaced(match: re.Match) -> str:
+        raw = match.group(0)
+        joined = re.sub(r"\s+", "", raw)
+        norm = normalize_for_profanity(joined)
+        if norm in ALL_PROFANITY_WORDS or (profanity and safe_contains_profanity(norm)):
+            return joined
+        return raw
+
+    if options.get("clean_obfuscated", True):
+        processed = spaced_pattern.sub(handle_spaced, processed)
+
     if options.get("normalize_unicode", True):
         processed = normalize_unicode_text(processed)
         steps.append("unicode_normalization")
@@ -186,7 +204,22 @@ def preprocess_text(text: str, options: Optional[Dict[str, bool]] = None) -> Tup
 
 
 def tokenize_text(text: str) -> List[Tuple[str, int, int]]:
-    return [(m.group(0), m.start(), m.end()) for m in TOKEN_RE.finditer(text or "")]
+    raw_tokens = [(m.group(0), m.start(), m.end()) for m in TOKEN_RE.finditer(text or "")]
+    final_tokens: List[Tuple[str, int, int]] = []
+    for token, start, end in raw_tokens:
+        if token.isspace():
+            final_tokens.append((token, start, end))
+            continue
+        m = re.match(r"^([A-Za-z0-9!@#$%^&*._|-]+?)([.,!?;:]+)$", token)
+        if m:
+            word_part = m.group(1)
+            punct_part = m.group(2)
+            if re.search(r"[A-Za-z0-9]", word_part) and len(word_part) >= 2:
+                final_tokens.append((word_part, start, start + len(word_part)))
+                final_tokens.append((punct_part, start + len(word_part), end))
+                continue
+        final_tokens.append((token, start, end))
+    return final_tokens
 
 
 def split_sentences(text: str) -> List[Tuple[str, int, int]]:
@@ -219,7 +252,7 @@ if PROFANITY_DICTIONARY:
 
 WORD_CATEGORIES: Dict[str, Set[str]] = {
     "Mild oaths & exclamations": {"god", "damn", "dammit", "damnit", "dang", "darn", "bloody", "hell", "heck", "geez", "gosh", "crap", "crappy", "blimey", "fudge", "shoot", "sugar", "omg"},
-    "Mild insults": {"idiot", "dumb", "dumbass", "dummy", "loser", "jerk", "moron", "dork", "dweeb", "lame", "wimp", "airhead", "blockhead", "bonehead", "dimwit", "doofus", "dope", "goof", "goofball", "knucklehead", "meathead", "nitwit", "numbskull"},
+    "Mild insults": {"idiot", "dumb", "dumbass", "dumbasses", "dummy", "loser", "jerk", "moron", "dork", "dweeb", "lame", "wimp", "airhead", "blockhead", "bonehead", "dimwit", "doofus", "dope", "goof", "goofball", "knucklehead", "meathead", "nitwit", "numbskull"},
     "Kill, suck": {"kill", "killed", "killer", "killing", "kills", "suck", "sucked", "sucker", "sucking", "sucks"},
     "body terms": {"butt", "butthead", "boob", "boobs", "tushy", "arse", "panties", "panty", "poop", "buttcheeks", "butthole"},
     "Mild Corn": {"erotic", "escort", "hardcore", "hooker", "kinky", "kinkster", "lovemaking", "nude", "nudity", "playboy", "sex", "sexy", "swinger", "topless", "upskirt", "porn", "porno", "pornography", "smut"},
@@ -232,6 +265,39 @@ WORD_CATEGORIES: Dict[str, Set[str]] = {
     "homophobic slurs": {"fag", "faggot", "dyke", "bulldyke", "tranny", "homo"},
     "Disability slurs": {"retard", "retarded", "spastic", "tard", "mong"},
 }
+
+
+def get_all_profanity_words() -> Set[str]:
+    words: Set[str] = set()
+    for cat_words in WORD_CATEGORIES.values():
+        words.update(w.lower() for w in cat_words)
+    if PROFANITY_DICTIONARY:
+        for cat_data in PROFANITY_DICTIONARY.get("categories", {}).values():
+            words.update(w.lower() for w in cat_data.get("words", []))
+    if profanity is not None and hasattr(profanity, "CENSOR_WORDSET"):
+        try:
+            words.update(str(x).lower() for x in profanity.CENSOR_WORDSET)
+        except Exception:
+            pass
+    return words
+
+ALL_PROFANITY_WORDS = get_all_profanity_words()
+
+
+def match_wildcard_profanity(word: str, known_profanity: Set[str]) -> Optional[str]:
+    if not word or not known_profanity:
+        return None
+    norm = word.lower().translate(LEET_TRANSLATION)
+    if any(c in norm for c in "*._-!$@#%^&"):
+        pattern_str = "^" + re.sub(r"[*._\-!$@#%^&]+", "[a-z]?", norm) + "$"
+        try:
+            pattern = re.compile(pattern_str)
+            for target in known_profanity:
+                if pattern.match(target):
+                    return target
+        except Exception:
+            pass
+    return None
 
 
 def get_category_whitelist(selected_categories: Optional[Sequence[str]]) -> Set[str]:
@@ -263,9 +329,12 @@ def get_rating_preset_whitelist(preset: str) -> Set[str]:
     return set()
 
 
-
 def safe_contains_profanity(value: str) -> bool:
-    if profanity is None or not value:
+    if not value:
+        return False
+    if value.lower() in ALL_PROFANITY_WORDS:
+        return True
+    if profanity is None:
         return False
     try:
         return bool(profanity.contains_profanity(value))
@@ -275,22 +344,25 @@ def safe_contains_profanity(value: str) -> bool:
 
 def classify_profanity_token(word: str, whitelist: Set[str], blacklist: Set[str], use_obfuscation: bool, use_standard: bool = True) -> Dict[str, Any]:
     normalized = normalize_for_profanity(word)
+    wildcard_hit = match_wildcard_profanity(word, ALL_PROFANITY_WORDS) if use_obfuscation else None
+    matched_word = wildcard_hit or normalized
+
     result = {
-        "normalized": normalized,
+        "normalized": normalized or matched_word,
         "is_profane": False,
         "is_obfuscated": False,
         "is_whitelisted": False,
         "is_blacklisted": False,
         "detection_source": "clean",
-        "severity_category": PROFANITY_SEVERITY_MAP.get(normalized, PROFANITY_SEVERITY_MAP.get((word or "").lower(), "NONE")),
+        "severity_category": PROFANITY_SEVERITY_MAP.get(matched_word, PROFANITY_SEVERITY_MAP.get(normalized, PROFANITY_SEVERITY_MAP.get((word or "").lower(), "NONE"))),
     }
-    if normalized and normalized in whitelist:
+    if (normalized and normalized in whitelist) or (matched_word and matched_word in whitelist):
         result["is_whitelisted"] = True
         result["detection_source"] = "whitelist"
         result["severity_category"] = "WHITELISTED"
         return result
 
-    if normalized and normalized in blacklist:
+    if (normalized and normalized in blacklist) or (matched_word and matched_word in blacklist):
         result["is_profane"] = True
         result["is_blacklisted"] = True
         result["detection_source"] = "blacklist"
@@ -299,7 +371,12 @@ def classify_profanity_token(word: str, whitelist: Set[str], blacklist: Set[str]
         return result
 
     original_hit = use_standard and safe_contains_profanity(word)
-    normalized_hit = use_obfuscation and normalized and safe_contains_profanity(normalized)
+    normalized_hit = use_obfuscation and (
+        (normalized and safe_contains_profanity(normalized)) or
+        (matched_word and safe_contains_profanity(matched_word)) or
+        (matched_word and matched_word in ALL_PROFANITY_WORDS) or
+        (normalized and normalized in ALL_PROFANITY_WORDS)
+    )
     if original_hit:
         result["is_profane"] = True
         result["detection_source"] = "lexicon"
@@ -309,7 +386,7 @@ def classify_profanity_token(word: str, whitelist: Set[str], blacklist: Set[str]
         result["detection_source"] = "obfuscated"
 
     plain_lower = re.sub(r"[^a-z]", "", (word or "").lower())
-    if result["is_profane"] and normalized and normalized != plain_lower:
+    if result["is_profane"] and (normalized != plain_lower or matched_word != plain_lower or any(c in word for c in "0123456789!@#$%^&*._|-")):
         result["is_obfuscated"] = True
     return result
 
