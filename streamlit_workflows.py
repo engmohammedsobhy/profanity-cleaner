@@ -47,9 +47,6 @@ TEXT_EXTENSIONS = (".txt", ".docx")
 ASR_MODELS = {
     "tiny.en": "tiny.en",
     "base.en": "base.en",
-    "small.en": "small.en",
-    "medium.en": "medium.en",
-    "large": "large",
 }
 RATING_PRESETS = ["Default", "PG", "PG-13", "R", "NC-17"]
 

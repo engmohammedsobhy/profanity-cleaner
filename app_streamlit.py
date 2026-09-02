@@ -381,7 +381,7 @@ def render_media_tab() -> None:
             censor_style_choice = st.radio(
                 "Censoring style",
                 options=["Silence", "One sound", "Multiple sounds"],
-                index=0,
+                index=1,
                 horizontal=True,
             )
 
@@ -403,7 +403,7 @@ def render_media_tab() -> None:
             sound_choice_keys = []
             custom_sound_path = ""
 
-            if mode == "One sound":
+            if mode == "sound":
                 selected_sound = st.selectbox("Sound Choice", list(sound_map.keys()))
                 sound_choice_keys = [sound_map[selected_sound]]
                 if selected_sound == "Custom":
@@ -411,7 +411,7 @@ def render_media_tab() -> None:
                     if uploaded_custom_sound:
                         custom_sound_path = workflows.save_uploaded_file(uploaded_custom_sound, "profanity_cleaner_custom")
 
-            elif mode == "Multiple sounds":
+            elif mode == "multiple_sounds":
                 selected_sounds = st.multiselect(
                     "Sound Choices (Randomly selected per profane word)",
                     options=list(sound_map.keys()),
@@ -426,7 +426,7 @@ def render_media_tab() -> None:
             overlap_censor = False
             marked_audio_volume = 100.0
 
-            if mode in ["One sound", "Multiple sounds"]:
+            if mode in ["sound", "multiple_sounds"]:
                 c1, c2 = st.columns(2)
                 with c1:
                     overlap_censor = st.checkbox("Overlap censor audio", value=False, help="Make original audio heard together with the censor sound.")
