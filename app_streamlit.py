@@ -116,19 +116,31 @@ def render_header() -> None:
         render_mascot("startup")
 
 
-def render_sidebar() -> None:
-    with st.sidebar:
-        st.header("Runtime")
-        if workflows.backend is None:
-            st.error("Media backend unavailable")
-            st.caption(workflows.BACKEND_IMPORT_ERROR)
-        else:
-            st.success("Media backend ready")
-        st.divider()
-        st.subheader("Defaults")
-        st.caption(f"Toxicity threshold: {workflows.DEFAULT_TOXICITY_THRESHOLD:.2f}")
-        st.caption("Text files: .txt, .docx")
-        st.caption("Media files: mp4, mkv, avi, mov, mp3, wav, m4a")
+def render_home_page() -> None:
+    st.markdown("## Welcome to Profanity Cleaner")
+    st.markdown("This powerful web application allows you to automatically detect and censor profanity from audio, video, and text files.")
+    
+    st.divider()
+    
+    col1, col2 = st.columns(2, gap="large")
+    with col1:
+        st.markdown("""
+        ### 🎥 Media Moderation
+        - **Automatic Transcription:** Uses Whisper AI to perfectly transcribe video and audio.
+        - **Timestamp Detection:** Detects profanity at the exact millisecond.
+        - **Smart Censoring:** Mutes or replaces the profanity with a custom sound seamlessly.
+        - **Export:** Download raw and clean text or SRT transcripts.
+        """)
+    with col2:
+        st.markdown("""
+        ### 📝 Text NLP
+        - **Document Processing:** Process large text documents or raw input.
+        - **Content Filtering:** Identifies inappropriate language quickly.
+        - **Custom Censor:** Replaces bad words with asterisks or custom tags.
+        - **Analysis Export:** Downloads cleaned text and detailed JSON analysis.
+        """)
+        
+    st.info("👈 Please select a tool from the sidebar navigation menu to get started.")
 
 
 def render_metric_grid(stats: Dict[str, Any], mapping: List[tuple[str, str]]) -> None:
@@ -412,12 +424,18 @@ def render_text_tab() -> None:
 
 def main() -> None:
     init_state()
-    render_sidebar()
+    
+    with st.sidebar:
+        st.header("Navigation")
+        page = st.radio("Go to", ["Home", "Media Moderation", "Text NLP"], label_visibility="collapsed")
+        
     render_header()
-    media_tab, text_tab = st.tabs(["Media", "Text NLP"])
-    with media_tab:
+    
+    if page == "Home":
+        render_home_page()
+    elif page == "Media Moderation":
         render_media_tab()
-    with text_tab:
+    elif page == "Text NLP":
         render_text_tab()
 
 
