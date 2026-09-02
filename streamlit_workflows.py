@@ -520,6 +520,16 @@ def process_text_content(raw_text: str, options: Dict[str, Any], file_path: str 
             parts.append(token.text)
     cleaned_text = "".join(parts)
 
+    html_parts: List[str] = []
+    for token in tokens:
+        escaped_text = html.escape(token.text)
+        if token.token_type == "word" and (clean_standard or clean_obfuscated) and token.is_profane:
+            cat_label = token.severity_category or "Profanity"
+            html_parts.append(f'<mark style="background: rgba(229, 9, 20, 0.35); border: 1px solid #e50914; border-radius: 4px; padding: 1px 6px; color: #ffffff; font-weight: 600;" title="{cat_label}">{escaped_text}</mark>')
+        else:
+            html_parts.append(escaped_text)
+    highlighted_html = "".join(html_parts).replace("\n", "<br>")
+
     emit(progress_callback, 50)
     sentences = analyze_sentences(cleaned_text)
 
@@ -534,6 +544,17 @@ def process_text_content(raw_text: str, options: Dict[str, Any], file_path: str 
 
     final_sentences = analyze_sentences(cleaned_text)
     stats = summarize_text(raw_text, processed_text, cleaned_text, tokens, final_sentences, preprocessing_steps)
+    
+    word_count = stats.get("word_count", 0)
+    profane_count = stats.get("profane_word_count", 0)
+    density = round(profane_count / max(1, word_count) * 100, 1)
+    cleanliness = max(0.0, round(100.0 - density, 1))
+    read_time_min = max(1, round(word_count / 200)) if word_count > 0 else 0
+
+    stats["profanity_density"] = f"{density}%"
+    stats["cleanliness_score"] = f"{cleanliness}%"
+    stats["read_time"] = f"{read_time_min} min read" if word_count > 0 else "< 1 min"
+
     flags = []
     if stats["profane_word_count"]:
         flags.append(f"Lexicon/obfuscation censor applied ({stats['profane_word_count']} word(s)).")
@@ -555,14 +576,14 @@ def process_text_content(raw_text: str, options: Dict[str, Any], file_path: str 
         "raw_text": raw_text,
         "processed_text": processed_text,
         "cleaned_text": cleaned_text,
+        "highlighted_html": highlighted_html,
         "summary_message": summary,
         "output_path": output_path,
         "flags": flags,
-        "tokens": [asdict(token) for token in tokens],
-        "word_tokens": [asdict(token) for token in tokens if token.token_type == "word"],
-        "sentences": [asdict(sentence) for sentence in final_sentences],
         "stats": stats,
-        "flagged_tokens": [asdict(token) for token in tokens if token.is_profane],
+        "word_tokens": [asdict(t) for t in tokens if t.token_type == "word"],
+        "flagged_tokens": [asdict(t) for t in tokens if t.is_profane],
+        "sentences": [asdict(s) for s in final_sentences],
     }
 
 

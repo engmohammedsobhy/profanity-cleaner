@@ -277,6 +277,7 @@ def init_state() -> None:
         "text_logs": [],
         "current_page": "Home",
         "active_media_key": None,
+        "active_text_val": "",
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
@@ -359,7 +360,7 @@ def render_home_page() -> None:
             - **Obfuscation Detection**: Catch leet speak, unicode tricks, and hidden profanity.
             - **Custom Word Overrides**: Fine-grained Whitelist and Blacklist rule enforcement.
             - **Flexible Masking**: Replace flagged terms with custom characters or standard masks.
-            - **Deep Linguistics**: Full POS tagging, lemma analysis, and frequency metrics.
+            - **Deep Linguistics & Visual Highlighting**: Full POS tagging, density analysis, and highlighted HTML context views.
             """)
 
 
@@ -457,7 +458,8 @@ def render_category_selector(key_prefix: str) -> List[str]:
 
 
 def render_media_tab() -> None:
-    input_col, options_col = st.columns([0.45, 0.55], gap="medium")
+    # Set left to right column ratio 2:4 (1/3 left, 2/3 right)
+    input_col, options_col = st.columns([2, 4], gap="medium")
 
     with input_col:
         with st.container():
@@ -477,7 +479,7 @@ def render_media_tab() -> None:
 
                 suffix = Path(uploaded_media.name).suffix.lower()
                 # Compact video preview player
-                _left_pad, video_box, _right_pad = st.columns([0.1, 0.8, 0.1])
+                _left_pad, video_box, _right_pad = st.columns([0.05, 0.9, 0.05])
                 with video_box:
                     if suffix in (".mp4", ".mkv", ".avi", ".mov", ".webm"):
                         st.video(uploaded_media)
@@ -658,37 +660,64 @@ def render_media_tab() -> None:
 def render_text_result(result: Dict[str, Any]) -> None:
     if not result:
         return
-    st.markdown("<div class='section-label'>Results</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-label'>Summary & NLP Metrics</div>", unsafe_allow_html=True)
     stats = result.get("stats", {})
     render_metric_grid(
         stats,
         [
-            ("Word Count", "word_count"),
-            ("Unique Terms", "unique_terms"),
+            ("Total Words", "word_count"),
             ("Profanity Hits", "profane_word_count"),
-            ("Sentences", "sentence_count"),
+            ("Cleanliness Score", "cleanliness_score"),
+            ("Profanity Density", "profanity_density"),
+            ("Est. Read Time", "read_time"),
         ],
     )
     st.markdown("<br>", unsafe_allow_html=True)
 
-    result_cols = st.columns([0.7, 0.3])
-    with result_cols[0]:
-        st.text_area("Cleaned Output Text", value=result.get("cleaned_text", ""), height=220)
-    with result_cols[1]:
-        render_copy_button(result.get("cleaned_text", ""))
-        st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
-        st.download_button("Download Cleaned Text", result.get("cleaned_text", "").encode("utf-8"), file_name="profanity_cleaned_text.txt", mime="text/plain", use_container_width=True)
-        st.download_button(
-            "Download NLP JSON",
-            json.dumps(result, indent=2, ensure_ascii=False).encode("utf-8"),
-            file_name="profanity_text_analysis.json",
-            mime="application/json",
-            use_container_width=True,
-        )
-        if result.get("output_path"):
-            download_path(result["output_path"], "Download Saved File")
+    # Multi-view output display
+    view_tab1, view_tab2, view_tab3 = st.tabs(["Cleaned Output", "Highlighted Flagged View", "Side-by-Side Comparison"])
 
-    st.markdown("<div class='section-label'>Details</div>", unsafe_allow_html=True)
+    with view_tab1:
+        result_cols = st.columns([0.7, 0.3])
+        with result_cols[0]:
+            st.text_area("Cleaned Output Text", value=result.get("cleaned_text", ""), height=220, label_visibility="collapsed")
+        with result_cols[1]:
+            render_copy_button(result.get("cleaned_text", ""))
+            st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
+            st.download_button("Download Cleaned Text", result.get("cleaned_text", "").encode("utf-8"), file_name="profanity_cleaned_text.txt", mime="text/plain", use_container_width=True)
+            st.download_button(
+                "Download NLP JSON",
+                json.dumps(result, indent=2, ensure_ascii=False).encode("utf-8"),
+                file_name="profanity_text_analysis.json",
+                mime="application/json",
+                use_container_width=True,
+            )
+            if result.get("output_path"):
+                download_path(result["output_path"], "Download Saved File")
+
+    with view_tab2:
+        st.markdown("<div class='section-label'>Visual Profanity Context (Flagged words highlighted in red)</div>", unsafe_allow_html=True)
+        html_content = result.get("highlighted_html", "")
+        st.markdown(
+            f"""
+            <div style="background: rgba(10, 10, 12, 0.95); padding: 1.25rem; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.08); font-size: 1.05rem; line-height: 1.7; color: #f5f5f7;">
+                {html_content}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with view_tab3:
+        cmp_col1, cmp_col2 = st.columns(2)
+        with cmp_col1:
+            st.markdown("<div class='section-label'>Original Raw Text</div>", unsafe_allow_html=True)
+            st.text_area("Original Text", value=result.get("raw_text", ""), height=220, label_visibility="collapsed")
+        with cmp_col2:
+            st.markdown("<div class='section-label'>Cleaned Output Text</div>", unsafe_allow_html=True)
+            st.text_area("Cleaned Text", value=result.get("cleaned_text", ""), height=220, label_visibility="collapsed")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<div class='section-label'>Detailed Linguistic Analysis</div>", unsafe_allow_html=True)
     token_tab, flagged_tab, sent_tab, vocab_tab = st.tabs(["Word Tokens", "Flagged Tokens", "Sentences", "Vocabulary Stats"])
     with token_tab:
         token_keys = ["index", "text", "normalized", "lemma", "pos_guess", "severity_category", "token_type", "start", "end", "is_stopword", "detection_source"]
@@ -714,7 +743,8 @@ def render_text_result(result: Dict[str, Any]) -> None:
 
 
 def render_text_tab() -> None:
-    input_col, options_col = st.columns([0.48, 0.52], gap="medium")
+    # Set left to right column ratio 2:4 (1/3 left, 2/3 right)
+    input_col, options_col = st.columns([2, 4], gap="medium")
     
     with input_col:
         with st.container():
@@ -725,7 +755,20 @@ def render_text_tab() -> None:
                 uploaded_path = workflows.save_uploaded_file(uploaded_text, "profanity_cleaner_text")
                 loaded_text = workflows.read_text_file(uploaded_path)
 
-            raw_text = st.text_area("Input/Raw Text", value=loaded_text, height=240, placeholder="Enter or paste text here, or upload a text file above.", label_visibility="collapsed")
+            st.markdown("<div class='section-label'>Sample Presets</div>", unsafe_allow_html=True)
+            sp_c1, sp_c2, sp_c3 = st.columns(3)
+            with sp_c1:
+                if st.button("Sample: Mild", use_container_width=True, type="secondary"):
+                    st.session_state["active_text_val"] = "Damn, this is crazy! What the hell is going on here? That idiot lost the game."
+            with sp_c2:
+                if st.button("Sample: Leet", use_container_width=True, type="secondary"):
+                    st.session_state["active_text_val"] = "F.u.c.k this sh!t and all those d*mbasses pushing 1diot code into production!"
+            with sp_c3:
+                if st.button("Sample: Clean", use_container_width=True, type="secondary"):
+                    st.session_state["active_text_val"] = "Artificial intelligence models analyze language patterns to promote safe and respectful digital communication."
+
+            text_val = st.session_state.get("active_text_val") or loaded_text
+            raw_text = st.text_area("Input/Raw Text", value=text_val, height=200, placeholder="Enter or paste text here, or upload a text file above.", label_visibility="collapsed")
 
             st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
             can_process = bool(raw_text.strip())
