@@ -1,14 +1,16 @@
 import locale
-locale.getpreferredencoding = lambda do_setlocale=True: "utf-8"
 import io
 import os
 import sys
 import joblib
 import numpy as np
 import tensorflow as tf
-import whisper
+import whisper 
 
+locale.getpreferredencoding = lambda do_setlocale=True: "utf-8"
+os.environ["TQDM_DISABLE"] = "1"
 os.environ["PYTHONUTF8"] = "1"
+
 if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
