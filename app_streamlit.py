@@ -12,7 +12,7 @@ import streamlit.components.v1 as components
 
 import streamlit_workflows as workflows
 
-st.set_page_config(page_title="profanity detector", layout="wide")
+st.set_page_config(page_title="Profanity Cleaner", layout="wide", page_icon="🛡️")
 
 st.markdown(
     """
@@ -21,10 +21,12 @@ st.markdown(
         
         :root {
             --bg-black: #000000;
-            --card-bg: rgba(28, 28, 30, 0.68);
+            --card-bg: rgba(28, 28, 30, 0.65);
             --card-border: rgba(255, 255, 255, 0.08);
-            --apple-blue: #0984e3;
-            --apple-blue-hover: #2997ff;
+            --apple-blue: #0071e3;
+            --apple-blue-hover: #0077ed;
+            --apple-blue-glow: rgba(0, 113, 227, 0.35);
+            --apple-blue-light: #2997ff;
             --text-primary: #f5f5f7;
             --text-secondary: #86868b;
             --card-radius: 18px;
@@ -32,14 +34,14 @@ st.markdown(
         }
 
         html, body, [class*="css"] {
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", sans-serif !important;
             -webkit-font-smoothing: antialiased;
         }
 
         .stApp {
-            background: #000000;
-            background-image: radial-gradient(circle at 50% -20%, #1c1c1e 0%, #000000 80%);
-            color: var(--text-primary);
+            background-color: #000000 !important;
+            background-image: radial-gradient(circle at 50% -10%, #1a1a26 0%, #000000 75%) !important;
+            color: var(--text-primary) !important;
         }
 
         /* Narrow Middle Spacing and Compact Gaps */
@@ -47,34 +49,55 @@ st.markdown(
             gap: 0.85rem !important;
         }
         
-        div[data-testid="stForm"], div.stContainer > div {
+        div[data-testid="stForm"], div.stContainer > div, div[data-testid="stExpander"] {
             background: var(--card-bg) !important;
-            backdrop-filter: blur(25px) !important;
-            -webkit-backdrop-filter: blur(25px) !important;
+            backdrop-filter: blur(30px) !important;
+            -webkit-backdrop-filter: blur(30px) !important;
             border: 1px solid var(--card-border) !important;
             border-radius: var(--card-radius) !important;
-            padding: 1.1rem 1.25rem !important;
+            padding: 1.25rem 1.4rem !important;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+        }
+
+        div.stContainer > div:hover {
+            border-color: rgba(255, 255, 255, 0.15) !important;
         }
 
         [data-testid="stSidebar"] {
-            background: rgba(0, 0, 0, 0.85) !important;
-            backdrop-filter: blur(30px) !important;
-            -webkit-backdrop-filter: blur(30px) !important;
+            background: rgba(10, 10, 12, 0.85) !important;
+            backdrop-filter: blur(35px) !important;
+            -webkit-backdrop-filter: blur(35px) !important;
             border-right: 1px solid var(--card-border) !important;
         }
 
         /* Apple Headline Typography */
+        .apple-badge {
+            display: inline-block;
+            padding: 0.25rem 0.8rem;
+            border-radius: 980px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            background: rgba(0, 113, 227, 0.15);
+            color: var(--apple-blue-light);
+            border: 1px solid rgba(0, 113, 227, 0.35);
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+        }
+
         .apple-title {
-            font-size: 2.4rem;
+            font-size: 2.5rem;
             font-weight: 700;
             color: #ffffff;
             letter-spacing: -0.03em;
-            margin-bottom: 0.2rem;
+            margin-bottom: 0.25rem;
+            line-height: 1.1;
         }
 
         .apple-subtitle {
             color: var(--text-secondary);
-            font-size: 1.0rem;
+            font-size: 1.05rem;
             font-weight: 400;
             letter-spacing: -0.01em;
             margin-bottom: 1.2rem;
@@ -91,33 +114,34 @@ st.markdown(
 
         /* Apple Metric Strips */
         .metric-card {
-            background: rgba(44, 44, 46, 0.5);
+            background: rgba(255, 255, 255, 0.03);
             backdrop-filter: blur(20px);
             border: 1px solid var(--card-border);
-            padding: 1.0rem 1.2rem;
-            border-radius: 14px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+            padding: 1.1rem 1.3rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
             transition: transform 0.2s ease, border-color 0.2s ease;
         }
 
         .metric-card:hover {
-            border-color: rgba(255, 255, 255, 0.18);
+            border-color: rgba(0, 113, 227, 0.4);
+            transform: translateY(-2px);
         }
 
         .metric-label {
             color: var(--text-secondary);
-            font-size: 0.75rem;
+            font-size: 0.73rem;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.06em;
+            letter-spacing: 0.08em;
         }
 
         .metric-value {
-            font-size: 1.6rem;
+            font-size: 1.8rem;
             font-weight: 700;
             color: var(--text-primary);
             margin-top: 0.2rem;
-            letter-spacing: -0.02em;
+            letter-spacing: -0.03em;
         }
 
         /* Apple Pill Buttons */
@@ -125,25 +149,44 @@ st.markdown(
             border-radius: var(--pill-radius) !important;
             font-weight: 600 !important;
             font-size: 0.9rem !important;
-            padding: 0.6rem 1.4rem !important;
-            transition: all 0.2s ease-in-out !important;
+            padding: 0.55rem 1.4rem !important;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
             border: 1px solid transparent !important;
-            background: #0071e3 !important;
+            background: var(--apple-blue) !important;
             color: #ffffff !important;
             letter-spacing: -0.01em !important;
+            box-shadow: 0 4px 14px var(--apple-blue-glow) !important;
         }
 
         .stButton > button:hover {
-            background: #0077ed !important;
+            background: var(--apple-blue-hover) !important;
             color: #ffffff !important;
-            box-shadow: 0 4px 14px rgba(0, 113, 227, 0.4) !important;
-            transform: scale(1.01) !important;
+            box-shadow: 0 6px 20px rgba(0, 113, 227, 0.5) !important;
+            transform: scale(1.015) !important;
+        }
+
+        .stButton > button:active {
+            transform: scale(0.98) !important;
         }
 
         .stButton > button:disabled {
             background: rgba(255, 255, 255, 0.08) !important;
             color: var(--text-secondary) !important;
             border-color: transparent !important;
+            box-shadow: none !important;
+        }
+
+        .stButton > button[kind="secondary"] {
+            background: rgba(255, 255, 255, 0.07) !important;
+            color: var(--text-primary) !important;
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+            box-shadow: none !important;
+        }
+
+        .stButton > button[kind="secondary"]:hover {
+            background: rgba(255, 255, 255, 0.14) !important;
+            border-color: rgba(255, 255, 255, 0.25) !important;
+            color: #ffffff !important;
         }
 
         /* Secondary Download Buttons */
@@ -151,26 +194,84 @@ st.markdown(
             border-radius: var(--pill-radius) !important;
             font-weight: 600 !important;
             border: 1px solid rgba(255, 255, 255, 0.12) !important;
-            background: rgba(255, 255, 255, 0.06) !important;
+            background: rgba(255, 255, 255, 0.07) !important;
             color: var(--text-primary) !important;
+            transition: all 0.2s ease !important;
         }
 
         .stDownloadButton > button:hover {
-            background: rgba(255, 255, 255, 0.15) !important;
-            border-color: rgba(255, 255, 255, 0.25) !important;
+            background: rgba(0, 113, 227, 0.15) !important;
+            border-color: var(--apple-blue) !important;
             color: #ffffff !important;
+            box-shadow: 0 4px 14px var(--apple-blue-glow) !important;
         }
 
-        textarea, input, select {
-            border-radius: 10px !important;
-            background: rgba(0, 0, 0, 0.3) !important;
+        textarea, input, select, div[data-baseweb="select"] > div {
+            border-radius: 12px !important;
+            background: rgba(0, 0, 0, 0.4) !important;
             border: 1px solid var(--card-border) !important;
             color: var(--text-primary) !important;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", sans-serif !important;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+        }
+
+        textarea:focus, input:focus, select:focus, div[data-baseweb="select"]:focus-within {
+            border-color: var(--apple-blue) !important;
+            box-shadow: 0 0 0 3px var(--apple-blue-glow) !important;
+            outline: none !important;
+        }
+
+        textarea::placeholder, input::placeholder {
+            color: #6e6e73 !important;
+        }
+
+        /* Streamlit accent controls override (Blue) */
+        [data-baseweb="slider"] div[role="slider"] {
+            background-color: var(--apple-blue) !important;
+            border-color: var(--apple-blue) !important;
+        }
+
+        [data-baseweb="slider"] div[data-testid="stSliderTickBar"] + div {
+            background-color: var(--apple-blue) !important;
+        }
+
+        div[data-baseweb="checkbox"] input:checked + div {
+            background-color: var(--apple-blue) !important;
+            border-color: var(--apple-blue) !important;
+        }
+
+        div[data-baseweb="radio"] input:checked + div {
+            border-color: var(--apple-blue) !important;
+        }
+
+        div[data-baseweb="radio"] input:checked + div > div {
+            background-color: var(--apple-blue) !important;
+        }
+
+        button[data-baseweb="tab"] {
+            border-radius: var(--pill-radius) !important;
+            font-weight: 500 !important;
+            color: var(--text-secondary) !important;
+            padding: 0.4rem 1rem !important;
+        }
+
+        button[data-baseweb="tab"][aria-selected="true"] {
+            color: #ffffff !important;
+            background: rgba(0, 113, 227, 0.15) !important;
+        }
+
+        div[data-baseweb="tab-highlight"] {
+            background-color: var(--apple-blue) !important;
+        }
+
+        div[data-testid="stProgress"] > div > div > div {
+            background-color: var(--apple-blue) !important;
+            background-image: linear-gradient(90deg, #0071e3, #2997ff) !important;
         }
 
         /* Code Log Output */
         pre {
-            background: rgba(18, 18, 18, 0.95) !important;
+            background: rgba(10, 10, 12, 0.95) !important;
             border: 1px solid var(--card-border) !important;
             border-radius: 12px !important;
             padding: 0.9rem !important;
@@ -248,35 +349,36 @@ def compact_rows(rows: List[Dict[str, Any]], keys: List[str]) -> List[Dict[str, 
 
 
 def render_header() -> None:
-    top_left, top_right = st.columns([0.8, 0.2], vertical_alignment="center")
+    top_left, top_right = st.columns([0.82, 0.18], vertical_alignment="center")
     with top_left:
-        st.markdown("<div class='apple-title'>profanity detector</div>", unsafe_allow_html=True)
-        st.markdown("<div class='apple-subtitle'>Intelligent media moderation and text profanity analysis.</div>", unsafe_allow_html=True)
+        st.markdown("<div class='apple-badge'>PROFANITY CLEANER 2.0</div>", unsafe_allow_html=True)
+        st.markdown("<div class='apple-title'>Profanity Detector & Media Moderation</div>", unsafe_allow_html=True)
+        st.markdown("<div class='apple-subtitle'>Intelligent media moderation, speech censoring, and text profanity analysis.</div>", unsafe_allow_html=True)
     with top_right:
         render_mascot("startup")
 
 
 def render_home_page() -> None:
-    st.markdown("<div class='section-label'>System Overview</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-label'>System Capabilities</div>", unsafe_allow_html=True)
     
-    col1, col2 = st.columns(2, gap="small")
+    col1, col2 = st.columns(2, gap="medium")
     with col1:
         with st.container(border=True):
-            st.markdown("#### Media Moderation")
+            st.markdown("### Media Moderation")
             st.markdown("""
-            - Automatic speech transcription with Whisper.
-            - Precise timestamp profanity muting or audio replacing.
-            - Customizable severity rating presets.
-            - Full subtitle SRT and JSON log exports.
+            - **Speech-to-Text Transcription**: Powered by OpenAI Whisper models.
+            - **Timestamp Muting & Audio Bleeping**: Mute or overlay custom censor audio seamlessly.
+            - **Rating Presets**: Instant filtering for Default, PG-13, R, and NC-17 standards.
+            - **Subtitles & Export Logs**: Generate raw/clean `.srt`, `.txt`, and `.json` logs.
             """)
     with col2:
         with st.container(border=True):
-            st.markdown("#### Text NLP Moderation")
+            st.markdown("### Text NLP Moderation")
             st.markdown("""
-            - Multi-level profanity and obfuscation identification.
-            - Category severity mapping for flagged terms.
-            - Customizable masking styles and replacement options.
-            - POS tag analytics and token dataset tables.
+            - **Obfuscation Detection**: Catch leet speak, unicode tricks, and hidden profanity.
+            - **Custom Word Overrides**: Fine-grained Whitelist and Blacklist rule enforcement.
+            - **Flexible Masking**: Replace flagged terms with custom characters or standard masks.
+            - **Deep Linguistics**: Full POS tagging, lemma analysis, and frequency metrics.
             """)
 
 
@@ -386,103 +488,12 @@ def render_media_tab() -> None:
             )
             asr_label = st.selectbox("ASR Model (Whisper)", list(workflows.ASR_MODELS.keys()), index=1, help="Whisper model size: larger models offer higher transcription accuracy.")
 
-            if "whitelist_words" not in st.session_state:
-                st.session_state.whitelist_words = []
-            if "blacklist_words" not in st.session_state:
-                st.session_state.blacklist_words = []
-
-            def _add_whitelist_word(word: Optional[str] = None):
-                val = word if word is not None else st.session_state.get("add_w_input", "")
-                val = val.strip().lower()
-                if val:
-                    for w in val.replace(",", " ").split():
-                        if w and w not in st.session_state.whitelist_words:
-                            st.session_state.whitelist_words.append(w)
-                if word is None:
-                    st.session_state.add_w_input = ""
-
-            def _remove_whitelist_word(w: str):
-                if w in st.session_state.whitelist_words:
-                    st.session_state.whitelist_words.remove(w)
-
-            def _add_blacklist_word(word: Optional[str] = None):
-                val = word if word is not None else st.session_state.get("add_b_input", "")
-                val = val.strip().lower()
-                if val:
-                    for b in val.replace(",", " ").split():
-                        if b and b not in st.session_state.blacklist_words:
-                            st.session_state.blacklist_words.append(b)
-                if word is None:
-                    st.session_state.add_b_input = ""
-
-            def _remove_blacklist_word(b: str):
-                if b in st.session_state.blacklist_words:
-                    st.session_state.blacklist_words.remove(b)
-
-            # --- WHITELIST UX ---
-            st.markdown("<div class='section-label' style='margin-top: 10px; margin-bottom: 2px;'>Whitelist (Allowed Words)</div>", unsafe_allow_html=True)
-            w_add_c1, w_add_c2 = st.columns([0.75, 0.25])
-            with w_add_c1:
-                st.text_input("Add Whitelist Word", key="add_w_input", placeholder="+ Add allowed word(s)...", label_visibility="collapsed", on_change=_add_whitelist_word)
-            with w_add_c2:
-                st.button("Add Word", key="btn_add_w", use_container_width=True, on_click=_add_whitelist_word)
-
-            if st.session_state.whitelist_words:
-                st.caption("Active allowed words (click ✖ to remove):")
-                wl_tag_cols = st.columns(min(len(st.session_state.whitelist_words), 4))
-                for idx, w_tag in enumerate(list(st.session_state.whitelist_words)):
-                    c_idx = idx % 4
-                    with wl_tag_cols[c_idx]:
-                        if st.button(f"🟢 {w_tag} ✖", key=f"wl_tag_btn_{w_tag}_{idx}", use_container_width=True):
-                            _remove_whitelist_word(w_tag)
-                            st.rerun()
-            else:
-                st.caption("No allowed words added yet.")
-
-            w_sug_candidates = [s for s in ["god", "damn", "hell", "crap"] if s not in st.session_state.whitelist_words]
-            if w_sug_candidates:
-                st.markdown("<div style='font-size: 0.78rem; color: #888888; margin-top: 4px;'>Quick add:</div>", unsafe_allow_html=True)
-                w_sug_cols = st.columns(len(w_sug_candidates))
-                for idx, sug in enumerate(w_sug_candidates):
-                    with w_sug_cols[idx]:
-                        if st.button(f"+ {sug}", key=f"wl_sug_btn_{sug}", use_container_width=True):
-                            _add_whitelist_word(sug)
-                            st.rerun()
-
-            st.markdown("<hr style='margin: 12px 0; border: none; border-top: 1px solid #333;'>", unsafe_allow_html=True)
-
-            # --- BLACKLIST UX ---
-            st.markdown("<div class='section-label' style='margin-bottom: 2px;'>Blacklist (Forced Censor Words)</div>", unsafe_allow_html=True)
-            b_add_c1, b_add_c2 = st.columns([0.75, 0.25])
-            with b_add_c1:
-                st.text_input("Add Blacklist Word", key="add_b_input", placeholder="+ Add forced censor word(s)...", label_visibility="collapsed", on_change=_add_blacklist_word)
-            with b_add_c2:
-                st.button("Add Word", key="btn_add_b", use_container_width=True, on_click=_add_blacklist_word)
-
-            if st.session_state.blacklist_words:
-                st.caption("Active forced censor words (click ✖ to remove):")
-                bl_tag_cols = st.columns(min(len(st.session_state.blacklist_words), 4))
-                for idx, b_tag in enumerate(list(st.session_state.blacklist_words)):
-                    c_idx = idx % 4
-                    with bl_tag_cols[c_idx]:
-                        if st.button(f"🔴 {b_tag} ✖", key=f"bl_tag_btn_{b_tag}_{idx}", use_container_width=True):
-                            _remove_blacklist_word(b_tag)
-                            st.rerun()
-            else:
-                st.caption("No forced censor words added yet.")
-
-            b_sug_candidates = [s for s in ["idiot", "fool", "stupid", "dumb"] if s not in st.session_state.blacklist_words]
-            if b_sug_candidates:
-                st.markdown("<div style='font-size: 0.78rem; color: #888888; margin-top: 4px;'>Quick add:</div>", unsafe_allow_html=True)
-                b_sug_cols = st.columns(len(b_sug_candidates))
-                for idx, sug in enumerate(b_sug_candidates):
-                    with b_sug_cols[idx]:
-                        if st.button(f"+ {sug}", key=f"bl_sug_btn_{sug}", use_container_width=True):
-                            _add_blacklist_word(sug)
-                            st.rerun()
-
-            selected_whitelist = st.session_state.whitelist_words
-            selected_blacklist = st.session_state.blacklist_words
+            st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
+            wl_col, bl_col = st.columns(2)
+            with wl_col:
+                selected_whitelist = st.text_area("Whitelist", placeholder="Allowed words", height=90, key="media_whitelist")
+            with bl_col:
+                selected_blacklist = st.text_area("Blacklist", placeholder="Forced censor words", height=90, key="media_blacklist")
 
     with options_col:
         with st.container(border=True):
@@ -609,8 +620,8 @@ def render_media_tab() -> None:
                 "export_raw_srt": export_raw_srt,
                 "export_clean_srt": export_clean_srt,
                 "export_json_log": export_json,
-                "whitelist_text": "\n".join(selected_whitelist),
-                "blacklist_text": "\n".join(selected_blacklist),
+                "whitelist_text": selected_whitelist,
+                "blacklist_text": selected_blacklist,
             }
             with st.spinner("Processing media..."):
                 st.session_state.media_result = workflows.process_media_file(file_path, options, status, status)
@@ -660,9 +671,9 @@ def text_options_panel(whitelist_col: Any, blacklist_col: Any) -> Dict[str, Any]
             remove_emails = st.checkbox("Remove Emails", value=False)
 
     with whitelist_col:
-        whitelist = st.text_area("Whitelist", placeholder="Allowed words", height=82)
+        whitelist = st.text_area("Whitelist", placeholder="Allowed words", height=90, key="text_whitelist_text")
     with blacklist_col:
-        blacklist = st.text_area("Blacklist", placeholder="Forced censor words", height=82)
+        blacklist = st.text_area("Blacklist", placeholder="Forced censor words", height=90, key="text_blacklist_text")
 
     return {
         "rating_preset": text_rating_preset,
