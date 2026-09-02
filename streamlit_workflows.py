@@ -15,12 +15,25 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 import streamlit as st
 
-try:
-    import backend
-    BACKEND_IMPORT_ERROR = ""
-except Exception as exc:
-    backend = None
-    BACKEND_IMPORT_ERROR = str(exc)
+import sys
+import importlib
+
+def get_backend():
+    global backend, BACKEND_IMPORT_ERROR
+    try:
+        if 'backend' in sys.modules and sys.modules['backend'] is not None:
+            backend = importlib.reload(sys.modules['backend'])
+        else:
+            import backend as b
+            backend = b
+        BACKEND_IMPORT_ERROR = ""
+        return backend
+    except Exception as exc:
+        backend = None
+        BACKEND_IMPORT_ERROR = str(exc)
+        return None
+
+backend = get_backend()
 
 try:
     from better_profanity import profanity
@@ -671,6 +684,9 @@ def process_text_file(file_path: str, options: Dict[str, Any], progress_callback
     return process_text_content(raw_text, options, file_path, progress_callback)
 
 def require_backend() -> Any:
+    global backend, BACKEND_IMPORT_ERROR
+    if backend is None:
+        backend = get_backend()
     if backend is None:
         raise RuntimeError(f"The media backend could not be imported: {BACKEND_IMPORT_ERROR}")
     return backend
