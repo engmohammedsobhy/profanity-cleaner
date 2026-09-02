@@ -8,6 +8,7 @@ import streamlit.components.v1 as components
  
 import toxicity_detoxifier as detox
  
+
  
 def _copy_button(text: str, label: str = "Copy Detoxified Text") -> None:
     payload = json.dumps(text or "")
@@ -36,7 +37,11 @@ def _init_toxicity_state() -> None:
  
 def _render_score_grid(category_scores: Dict[str, float]) -> None:
     if not category_scores:
-        st.info("No category scores available (model not loaded).")
+        reason = getattr(detox, "MODEL_LOAD_ERROR", None)
+        if reason:
+            st.error(f"Model not loaded — {reason}")
+        else:
+            st.info("No category scores available (model not loaded).")
         return
     cats = list(category_scores.items())
     cols = st.columns(len(cats))
@@ -140,4 +145,3 @@ def render_toxicity_tab() -> None:
     if st.session_state.get("toxicity_result"):
         with st.container():
             _render_result(st.session_state.toxicity_result)
- 
