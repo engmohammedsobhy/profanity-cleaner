@@ -9,6 +9,7 @@ import math
 import json
 import re
 import platform
+import gc
 from typing import List, Dict, Any, Tuple, Set, Callable
 from urllib.parse import quote
 
@@ -21,8 +22,6 @@ try:
     import numpy as np
     import docx
     import torch
-    import torch.nn.functional as F
-    from transformers import AutoTokenizer, AutoModelForSequenceClassification
     import torchaudio
     import soundfile as sf
 except ImportError as e:
@@ -350,11 +349,15 @@ def load_ml_resources(progress_callback: Callable, load_toxicity: bool, asr_mode
                 ASR_MODEL_KEY_CURRENT = asr_model_name
             else:
                 try:
-                    progress_callback.emit(f"Loading/Downloading ASR model ({asr_model_name} English), if the model is your first time to use, we will download it rn, then you can use the model as you like twin, if not, then nvm")
+                    progress_callback.emit(f"Loading ASR model ({asr_model_name})...")
+                    ML_MODEL_CACHE.clear()
+                    gc.collect()
+                    if 'torch' in sys.modules and hasattr(torch, 'cuda') and torch.cuda.is_available():
+                        torch.cuda.empty_cache()
                     model = whisper.load_model(asr_model_name)
                     ML_MODEL_CACHE[asr_model_name] = model
                     ASR_MODEL_KEY_CURRENT = asr_model_name
-                    progress_callback.emit(f"ASR Model ({asr_model_name}) loaded successfully, let's go")
+                    progress_callback.emit(f"ASR Model ({asr_model_name}) loaded successfully.")
                 except Exception as e:
                     sys.stdout = original_stdout
                     raise Exception(f"Failed to load ASR Model: {e}. Check Whisper/PyTorch installation.")
@@ -495,13 +498,15 @@ def transcribe_audio(audio_path: str, progress_callback: Callable) -> Dict[str, 
     import warnings
     warnings.filterwarnings("ignore", message="FP16 is not supported on CPU; using FP32 instead")
 
-    result = asr_model.transcribe(
-        audio_path,
-        language="en",
-        word_timestamps=True,
-        verbose=False
-    )
+    with torch.no_grad():
+        result = asr_model.transcribe(
+            audio_path,
+            language="en",
+            word_timestamps=True,
+            verbose=False
+        )
 
+    gc.collect()
     return result
 
 def format_time_srt(ms: int) -> str:
@@ -724,6 +729,9 @@ def censor_media(
 
     bleeped_media.export(output_file_path, format=output_format, parameters=export_parameters)
     
+    del bleeped_media, media
+    gc.collect()
+
     progress_callback.emit(f"Censored media saved successfully to: {output_file_path}")
     progress_value_callback.emit(100)
     return output_file_path

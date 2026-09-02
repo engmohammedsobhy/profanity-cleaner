@@ -34,13 +34,8 @@ except Exception:
 
 try:
     import torch
-    import torch.nn.functional as F
-    from transformers import AutoModelForSequenceClassification, AutoTokenizer
 except Exception:
     torch = None
-    F = None
-    AutoModelForSequenceClassification = None
-    AutoTokenizer = None
 
 DEFAULT_TOXICITY_THRESHOLD = 0.75
 MIN_TOXICITY_WORD_COUNT = 3

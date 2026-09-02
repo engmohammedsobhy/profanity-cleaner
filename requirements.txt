@@ -6,5 +6,4 @@ better_profanity
 pydub
 numpy
 python-docx
-transformers
 soundfile
