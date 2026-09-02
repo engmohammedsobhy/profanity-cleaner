@@ -413,7 +413,7 @@ def render_media_tab() -> None:
 
             elif mode == "multiple_sounds":
                 selected_sounds = st.multiselect(
-                    "Sound Choices (Randomly selected per profane word)",
+                    "Sound Choices (Played simultaneously overlaid at each profane word)",
                     options=list(sound_map.keys()),
                     default=["Sine wave", "Quack", "Dolphin"],
                 )

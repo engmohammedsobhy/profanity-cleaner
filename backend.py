@@ -731,54 +731,83 @@ def censor_media(
     bleeped_media = media[:]
     total_segments = len(segments_to_censor)
 
-    for i, entry in enumerate(segments_to_censor):
+    raw_intervals = []
+    for entry in segments_to_censor:
         start = entry['start_ms']
         end = entry['end_ms']
+        p_start = max(0, start - padding_before_ms)
+        p_end = min(len(media), end + padding_after_ms)
+        if p_end > p_start:
+            raw_intervals.append((p_start, p_end))
 
-        actual_start = max(0, start - padding_before_ms)
-        actual_end = min(len(media), end + padding_after_ms)
-        actual_duration = actual_end - actual_start
+    if not raw_intervals:
+        return output_file_path
 
-        if actual_duration > 0:
-            if mode in ['sound', 'multiple_sounds']:
-                if mode == 'multiple_sounds' and isinstance(sound_choice, list) and len(sound_choice) > 0:
-                    chosen_sound = random.choice(sound_choice)
-                elif isinstance(sound_choice, list) and len(sound_choice) > 0:
-                    chosen_sound = sound_choice[0]
-                else:
-                    chosen_sound = str(sound_choice) if sound_choice else 'B'
-
-                replacement_segment = load_censor_sound(
-                    chosen_sound, actual_duration, media.frame_rate, media.channels, custom_sound_path, volume_change, progress_callback
-                )
-
-                if overlap_censor:
-                    orig_segment = media[actual_start:actual_end]
-                    if marked_audio_volume <= 0:
-                        orig_segment = AudioSegment.silent(duration=actual_duration, frame_rate=media.frame_rate, channels=media.channels)
-                    elif marked_audio_volume < 100:
-                        db_reduction = 20.0 * math.log10(marked_audio_volume / 100.0)
-                        orig_segment = orig_segment + db_reduction
-
-                    censored_segment = orig_segment.overlay(replacement_segment)
-                else:
-                    censored_segment = replacement_segment
-
-            elif mode == 'silence':
-                censored_segment = AudioSegment.silent(duration=actual_duration, frame_rate=media.frame_rate, channels=media.channels)
+    raw_intervals.sort(key=lambda x: x[0])
+    merged_intervals = []
+    for interval in raw_intervals:
+        if not merged_intervals:
+            merged_intervals.append(interval)
+        else:
+            prev_start, prev_end = merged_intervals[-1]
+            if interval[0] <= prev_end:
+                merged_intervals[-1] = (prev_start, max(prev_end, interval[1]))
             else:
-                continue
+                merged_intervals.append(interval)
 
-            bleeped_media = (
-                bleeped_media[:actual_start] +
-                censored_segment +
-                bleeped_media[actual_end:]
+    bleeped_media = media[:]
+    total_segments = len(merged_intervals)
+
+    for i, (actual_start, actual_end) in enumerate(merged_intervals):
+        actual_duration = actual_end - actual_start
+        if actual_duration <= 0:
+            continue
+
+        if mode in ['sound', 'multiple_sounds']:
+            if isinstance(sound_choice, list) and len(sound_choice) > 0:
+                sounds_list = sound_choice
+            else:
+                sounds_list = [str(sound_choice) if sound_choice else 'B']
+
+            replacement_segment = load_censor_sound(
+                sounds_list[0], actual_duration, media.frame_rate, media.channels, custom_sound_path, volume_change, progress_callback
             )
+            for snd in sounds_list[1:]:
+                over_seg = load_censor_sound(
+                    snd, actual_duration, media.frame_rate, media.channels, custom_sound_path, volume_change, progress_callback
+                )
+                replacement_segment = replacement_segment.overlay(over_seg)
 
-            flag_type = "Profanity" if entry.get('is_profane') else "Toxicity"
-            progress_callback.emit(f"Applied '{mode}' to {flag_type} at {actual_start/1000:.2f}s")
+            replacement_segment = replacement_segment.set_sample_width(media.sample_width)
 
-        progress_value_callback.emit(int(50 + (i / total_segments) * 50))
+            if overlap_censor:
+                orig_segment = media[actual_start:actual_end]
+                if marked_audio_volume <= 0:
+                    orig_segment = AudioSegment.silent(duration=actual_duration, frame_rate=media.frame_rate, channels=media.channels)
+                elif marked_audio_volume < 100:
+                    ratio = max(0.0001, float(marked_audio_volume) / 100.0)
+                    db_reduction = 20.0 * math.log10(ratio)
+                    orig_segment = orig_segment + db_reduction
+
+                censored_segment = orig_segment.overlay(replacement_segment)
+            else:
+                censored_segment = replacement_segment
+
+        elif mode == 'silence':
+            censored_segment = AudioSegment.silent(duration=actual_duration, frame_rate=media.frame_rate, channels=media.channels)
+        else:
+            continue
+
+        censored_segment = censored_segment.set_sample_width(media.sample_width).set_frame_rate(media.frame_rate).set_channels(media.channels)
+
+        bleeped_media = (
+            bleeped_media[:actual_start] +
+            censored_segment +
+            bleeped_media[actual_end:]
+        )
+
+        progress_callback.emit(f"Applied '{mode}' censoring to segment [{actual_start/1000:.2f}s - {actual_end/1000:.2f}s]")
+        progress_value_callback.emit(int(50 + ((i + 1) / total_segments) * 50))
 
     old_stdout, old_stderr = sys.stdout, sys.stderr
     try:
