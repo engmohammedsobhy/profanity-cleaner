@@ -18,25 +18,38 @@ if sys.platform == "win32":
 with patch("whisper.tqdm"):
     speech_model = whisper.load_model("base")
 
+# مسار المجلد اللي فيه الملف ده نفسه (بيشتغل صح مهما كان مكان تشغيل السكريبت)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "toxicity_detection_model.keras")
+CATEGORIES_PATH = os.path.join(BASE_DIR, "categories.pkl")
+
+
 @tf.keras.utils.register_keras_serializable()
 def weighted_binary_crossentropy(y_true, y_pred):
     return tf.keras.losses.binary_crossentropy(y_true, y_pred)
 
 
-try:
-    toxicity_model = tf.keras.models.load_model(
-        "toxicity_detection_model.keras",
-        custom_objects={
-            "weighted_binary_crossentropy": weighted_binary_crossentropy
-        },
-        compile=False,
+if not os.path.exists(MODEL_PATH):
+    raise FileNotFoundError(
+        f"Toxicity model not found at: {MODEL_PATH}\n"
+        f"Make sure 'toxicity_detection_model.keras' is placed next to this script."
     )
-except Exception:
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    MODEL_PATH = os.path.join(BASE_DIR, "toxicity_detection_model.keras")
-    toxicity_model = tf.keras.models.load_model(MODEL_PATH)
 
-categories = joblib.load("categories.pkl")
+toxicity_model = tf.keras.models.load_model(
+    MODEL_PATH,
+    custom_objects={
+        "weighted_binary_crossentropy": weighted_binary_crossentropy
+    },
+    compile=False,
+)
+
+if not os.path.exists(CATEGORIES_PATH):
+    raise FileNotFoundError(
+        f"categories.pkl not found at: {CATEGORIES_PATH}\n"
+        f"Make sure 'categories.pkl' is placed next to this script."
+    )
+
+categories = joblib.load(CATEGORIES_PATH)
 
 
 def transcribe_media(media_path):
