@@ -487,11 +487,6 @@ def process_text_content(raw_text: str, options: Dict[str, Any], file_path: str 
 
     emit(progress_callback, 50)
     sentences = analyze_sentences(cleaned_text)
-    toxic_replacements: List[SentenceAnalysis] = []
-    if clean_toxicity and toxicity_ready:
-        cleaned_text, toxic_replacements = replace_toxic_sentences(cleaned_text, sentences, style, custom)
-    elif clean_toxicity:
-        emit(progress_callback, "Toxicity cleaning skipped because the model is unavailable.")
 
     emit(progress_callback, 80)
     output_path = None
