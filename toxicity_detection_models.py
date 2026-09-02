@@ -5,7 +5,10 @@ import sys
 import joblib
 import numpy as np
 import tensorflow as tf
-import whisper 
+import whisper
+import tqdm
+
+tqdm.tqdm.__init__ = lambda *args, **kwargs: None
 
 locale.getpreferredencoding = lambda do_setlocale=True: "utf-8"
 os.environ["TQDM_DISABLE"] = "1"
@@ -16,7 +19,6 @@ if sys.platform == "win32":
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
 
 speech_model = whisper.load_model("base")
-
 
 @tf.keras.utils.register_keras_serializable()
 def weighted_binary_crossentropy(y_true, y_pred):
