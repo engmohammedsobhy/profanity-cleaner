@@ -368,16 +368,7 @@ def render_media_tab() -> None:
             render_mascot("media")
 
         with st.container(border=True):
-            st.markdown("#### Word Overrides")
-            words_a, words_b = st.columns(2)
-            with words_a:
-                whitelist = st.text_area("Whitelist", placeholder="Allowed words", height=82)
-            with words_b:
-                blacklist = st.text_area("Blacklist", placeholder="Forced censor words", height=82)
-
-    with options_col:
-        with st.container(border=True):
-            st.markdown("#### Moderation & Audio")
+            st.markdown("#### Moderation")
             media_rating_preset = st.selectbox(
                 "Severity Rating Preset",
                 options=workflows.RATING_PRESETS,
@@ -385,7 +376,54 @@ def render_media_tab() -> None:
                 help="Default (strict censor), PG-13 (allows mild oaths), R (allows mild & moderate swearing), NC-17 (allows all except severe slurs).",
             )
             asr_label = st.selectbox("ASR Model (Whisper)", list(workflows.ASR_MODELS.keys()), index=1, help="Whisper model size: larger models offer higher transcription accuracy.")
+
+            if "whitelist_options" not in st.session_state:
+                st.session_state.whitelist_options = ["god", "damn", "hell", "crap", "bloody"]
             
+            selected_whitelist = st.multiselect(
+                "Whitelist (Allowed Words)",
+                options=st.session_state.whitelist_options,
+                default=[],
+                help="Words to allow/skip during censoring. Select from pill tags or type custom word below.",
+                key="whitelist_tags_ms",
+            )
+
+            w_add_c1, w_add_c2 = st.columns([0.7, 0.3])
+            with w_add_c1:
+                new_w = st.text_input("Add Whitelist Word", key="add_w_input", placeholder="+ Add allowed word...", label_visibility="collapsed")
+            with w_add_c2:
+                if st.button("Add Word", key="btn_add_w", use_container_width=True) and new_w:
+                    w_clean = new_w.strip().lower()
+                    if w_clean and w_clean not in st.session_state.whitelist_options:
+                        st.session_state.whitelist_options.append(w_clean)
+                        st.rerun()
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            if "blacklist_options" not in st.session_state:
+                st.session_state.blacklist_options = ["idiot", "fool", "stupid", "dumb", "jerk"]
+
+            selected_blacklist = st.multiselect(
+                "Blacklist (Forced Censor Words)",
+                options=st.session_state.blacklist_options,
+                default=[],
+                help="Words to force censor. Select from pill tags or type custom word below.",
+                key="blacklist_tags_ms",
+            )
+
+            b_add_c1, b_add_c2 = st.columns([0.7, 0.3])
+            with b_add_c1:
+                new_b = st.text_input("Add Blacklist Word", key="add_b_input", placeholder="+ Add forced censor word...", label_visibility="collapsed")
+            with b_add_c2:
+                if st.button("Add Word", key="btn_add_b", use_container_width=True) and new_b:
+                    b_clean = new_b.strip().lower()
+                    if b_clean and b_clean not in st.session_state.blacklist_options:
+                        st.session_state.blacklist_options.append(b_clean)
+                        st.rerun()
+
+    with options_col:
+        with st.container(border=True):
+            st.markdown("#### Audio Censoring")
             censor_style_choice = st.radio(
                 "Censoring style",
                 options=["Silence", "One sound", "Multiple sounds"],
@@ -505,8 +543,8 @@ def render_media_tab() -> None:
                 "export_raw_srt": export_raw_srt,
                 "export_clean_srt": export_clean_srt,
                 "export_json_log": export_json,
-                "whitelist_text": whitelist,
-                "blacklist_text": blacklist,
+                "whitelist_text": "\n".join(selected_whitelist),
+                "blacklist_text": "\n".join(selected_blacklist),
             }
             with st.spinner("Processing media..."):
                 st.session_state.media_result = workflows.process_media_file(file_path, options, status, status)
