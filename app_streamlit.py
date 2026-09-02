@@ -50,6 +50,7 @@ def init_state() -> None:
         "text_result": None,
         "media_logs": [],
         "text_logs": [],
+        "current_page": "Home",
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
@@ -422,12 +423,20 @@ def render_text_tab() -> None:
             render_text_result(st.session_state.text_result)
 
 
+def set_page(page_name: str) -> None:
+    st.session_state.current_page = page_name
+
+
 def main() -> None:
     init_state()
     
     with st.sidebar:
         st.header("Navigation")
-        page = st.radio("Go to", ["Home", "Media Moderation", "Text NLP"], label_visibility="collapsed")
+        st.button("Home", use_container_width=True, type="primary" if st.session_state.current_page == "Home" else "secondary", on_click=set_page, args=("Home",))
+        st.button("Media Moderation", use_container_width=True, type="primary" if st.session_state.current_page == "Media Moderation" else "secondary", on_click=set_page, args=("Media Moderation",))
+        st.button("Text NLP", use_container_width=True, type="primary" if st.session_state.current_page == "Text NLP" else "secondary", on_click=set_page, args=("Text NLP",))
+        
+    page = st.session_state.current_page
         
     render_header()
     
