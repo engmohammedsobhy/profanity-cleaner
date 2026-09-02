@@ -62,15 +62,12 @@ model = None
 if tf is not None:
     try:
         if not os.path.exists(MODEL_PATH):
-            print(f"Downloading toxicity model from GitHub Release...")
             urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
-            print("Download completed successfully.")
-        
+
         model = tf.keras.models.load_model(MODEL_PATH)
     except Exception as e:
         model = None
         MODEL_LOAD_ERROR = str(e)
-        print(f"Warning: Could not load toxicity model from {MODEL_PATH}: {e}")
 else:
     MODEL_LOAD_ERROR = "TensorFlow is not installed."
 
