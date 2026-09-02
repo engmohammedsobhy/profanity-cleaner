@@ -525,13 +525,35 @@ def transcribe_audio(audio_path: str, progress_callback: Any) -> Dict[str, Any]:
 
     audio_input = load_audio_samples(audio_path)
 
-    with torch.no_grad():
-        result = asr_model.transcribe(
-            audio_input,
-            language="en",
-            word_timestamps=True,
-            verbose=False
-        )
+    old_stdout, old_stderr = sys.stdout, sys.stderr
+    try:
+        with open(os.devnull, 'w', encoding='utf-8') as devnull:
+            sys.stdout = devnull
+            sys.stderr = devnull
+            with torch.no_grad():
+                result = asr_model.transcribe(
+                    audio_input,
+                    language="en",
+                    word_timestamps=True,
+                    verbose=False
+                )
+    except Exception as e:
+        if isinstance(e, (BrokenPipeError, OSError)) or 'Broken pipe' in str(e) or getattr(e, 'errno', None) == 32:
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+            progress_callback.emit("Notice: Pipe error suppressed during transcription stream. Retrying in-memory...")
+            with torch.no_grad():
+                result = asr_model.transcribe(
+                    audio_input,
+                    language="en",
+                    word_timestamps=True,
+                    verbose=False
+                )
+        else:
+            raise e
+    finally:
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
 
     gc.collect()
     return result
@@ -758,7 +780,19 @@ def censor_media(
 
         progress_value_callback.emit(int(50 + (i / total_segments) * 50))
 
-    bleeped_media.export(output_file_path, format=output_format, parameters=export_parameters)
+    old_stdout, old_stderr = sys.stdout, sys.stderr
+    try:
+        with open(os.devnull, 'w', encoding='utf-8') as devnull:
+            sys.stdout = devnull
+            sys.stderr = devnull
+            bleeped_media.export(output_file_path, format=output_format, parameters=export_parameters)
+    except Exception:
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
+        bleeped_media.export(output_file_path, format=output_format, parameters=export_parameters)
+    finally:
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
     
     del bleeped_media, media
     gc.collect()
