@@ -116,10 +116,18 @@ def render_toxicity_tab() -> None:
 
         st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
         
+
         st.markdown(
             """
             <style>
-            div[data-testid="stSlider"] {
+            .stSlider, div[data-testid="stSlider"], div[data-testid="stSlider"] > div {
+                direction: ltr !important;
+                text-align: left !important;
+            }
+            div[data-testid="stSlider"] [data-baseweb="slider"] {
+                direction: ltr !important;
+            }
+            div[data-testid="stSlider"] [role="slider"] {
                 direction: ltr !important;
             }
             </style>
@@ -153,7 +161,7 @@ def render_toxicity_tab() -> None:
             except Exception as exc:
                 st.session_state.toxicity_result = None
                 st.error(str(exc))
- 
+
     if st.session_state.get("toxicity_result"):
         with st.container():
             _render_result(st.session_state.toxicity_result)
