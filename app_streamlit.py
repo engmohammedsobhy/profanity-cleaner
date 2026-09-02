@@ -65,21 +65,6 @@ st.markdown(
             border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
         }
 
-        /* Apple Headline Typography */
-        .apple-badge {
-            display: inline-block;
-            padding: 0.25rem 0.8rem;
-            border-radius: 980px;
-            font-size: 0.72rem;
-            font-weight: 600;
-            background: rgba(0, 113, 227, 0.15);
-            color: var(--apple-blue-light);
-            border: 1px solid rgba(0, 113, 227, 0.35);
-            letter-spacing: 0.05em;
-            margin-bottom: 0.4rem;
-            text-transform: uppercase;
-        }
-
         .apple-title {
             font-size: 2.5rem;
             font-weight: 700;
@@ -362,16 +347,13 @@ def compact_rows(rows: List[Dict[str, Any]], keys: List[str]) -> List[Dict[str, 
 def render_header() -> None:
     top_left, top_right = st.columns([0.82, 0.18], vertical_alignment="center")
     with top_left:
-        st.markdown("<div class='apple-badge'>PROFANITY CLEANER 2.0</div>", unsafe_allow_html=True)
-        st.markdown("<div class='apple-title'>Profanity Detector & Media Moderation</div>", unsafe_allow_html=True)
+        st.markdown("<div class='apple-title'>Profanity Detector</div>", unsafe_allow_html=True)
         st.markdown("<div class='apple-subtitle'>Intelligent media moderation, speech censoring, and text profanity analysis.</div>", unsafe_allow_html=True)
     with top_right:
         render_mascot("startup")
 
 
 def render_home_page() -> None:
-    st.markdown("<div class='section-label'>System Capabilities</div>", unsafe_allow_html=True)
-    
     col1, col2 = st.columns(2, gap="medium")
     with col1:
         with st.container():
@@ -468,12 +450,10 @@ def render_media_result(result: Dict[str, Any]) -> None:
 
 
 def render_media_tab() -> None:
-    st.markdown("<div class='section-label'>Media Moderation</div>", unsafe_allow_html=True)
     input_col, options_col = st.columns([0.45, 0.55], gap="medium")
 
     with input_col:
         with st.container():
-            st.markdown("<div class='section-label'>Source Media Input</div>", unsafe_allow_html=True)
             uploaded_media = st.file_uploader(
                 "Input Media File",
                 type=[ext.strip(".") for ext in workflows.MEDIA_EXTENSIONS],
@@ -502,16 +482,11 @@ def render_media_tab() -> None:
             else:
                 st.session_state.media_result = None
                 st.session_state.active_media_key = None
-                st.info("👈 Upload an audio or video file to preview and configure censoring.")
                 process = False
 
             render_mascot("media")
 
     with options_col:
-        if not uploaded_media:
-            st.info("💡 Upload an audio or video file to configure censoring options and word rules.")
-            return
-
         # Tabbed Option Panel for clean feature navigation
         tab_mod, tab_audio, tab_export = st.tabs([
             "🛡️ Moderation & Rules",
@@ -678,65 +653,6 @@ def render_media_tab() -> None:
             render_media_result(st.session_state.media_result)
 
 
-def text_options_panel(whitelist_col: Any, blacklist_col: Any) -> Dict[str, Any]:
-    with st.container():
-        st.markdown("#### Rating & Rules")
-        text_rating_preset = st.selectbox(
-            "Severity Rating Preset",
-            options=workflows.RATING_PRESETS,
-            index=0,
-            key="text_rating_preset",
-            help="Default (strict censor), PG-13 (allows mild oaths), R (allows mild & moderate swearing), NC-17 (allows all except severe slurs).",
-        )
-
-        rules_col, style_col = st.columns([1, 1])
-        with rules_col:
-            st.markdown("<div class='section-label'>Rules</div>", unsafe_allow_html=True)
-            clean_standard = st.checkbox("Lexicon Matching", value=True)
-            clean_obfuscated = st.checkbox("Obfuscated / Leet Speak", value=True)
-        with style_col:
-            st.markdown("<div class='section-label'>Style</div>", unsafe_allow_html=True)
-            style_label = st.radio("Replacement", ["****", "F***", "Custom"], horizontal=True)
-            style = {"****": "A", "F***": "B", "Custom": "D"}[style_label]
-            custom = st.text_input("Custom String", value="####", disabled=style != "D")
-
-    with st.container():
-        st.markdown("#### Normalization")
-        p1, p2, p3 = st.columns(3)
-        with p1:
-            normalize_unicode = st.checkbox("Unicode Cleanup", value=True)
-            expand_contractions = st.checkbox("Expand Contractions", value=False)
-        with p2:
-            compact_whitespace = st.checkbox("Compact Whitespace", value=False)
-            casefold = st.checkbox("Casefold", value=False)
-        with p3:
-            remove_urls = st.checkbox("Remove URLs", value=False)
-            remove_emails = st.checkbox("Remove Emails", value=False)
-
-    with whitelist_col:
-        whitelist = st.text_area("Whitelist", placeholder="Allowed words", height=90, key="text_whitelist_text")
-    with blacklist_col:
-        blacklist = st.text_area("Blacklist", placeholder="Forced censor words", height=90, key="text_blacklist_text")
-
-    return {
-        "rating_preset": text_rating_preset,
-        "clean_standard": clean_standard,
-        "clean_obfuscated": clean_obfuscated,
-        "censor_style": style,
-        "custom_replacement": custom,
-        "whitelist_text": whitelist,
-        "blacklist_text": blacklist,
-        "preprocess": {
-            "normalize_unicode": normalize_unicode,
-            "expand_contractions": expand_contractions,
-            "compact_whitespace": compact_whitespace,
-            "casefold": casefold,
-            "remove_urls": remove_urls,
-            "remove_emails": remove_emails,
-        },
-    }
-
-
 def render_text_result(result: Dict[str, Any]) -> None:
     if not result:
         return
@@ -796,12 +712,10 @@ def render_text_result(result: Dict[str, Any]) -> None:
 
 
 def render_text_tab() -> None:
-    st.markdown("<div class='section-label'>Text NLP Analysis</div>", unsafe_allow_html=True)
-    input_col, options_col = st.columns([1.0, 1.0], gap="small")
+    input_col, options_col = st.columns([0.48, 0.52], gap="medium")
     
     with input_col:
         with st.container():
-            st.markdown("#### Input Text")
             uploaded_text = st.file_uploader("Upload Text File", type=[ext.strip(".") for ext in workflows.TEXT_EXTENSIONS], key="text_upload", label_visibility="collapsed")
             uploaded_path = ""
             loaded_text = ""
@@ -809,16 +723,72 @@ def render_text_tab() -> None:
                 uploaded_path = workflows.save_uploaded_file(uploaded_text, "profanity_cleaner_text")
                 loaded_text = workflows.read_text_file(uploaded_path)
 
-            raw_text = st.text_area("Input/Raw Text", value=loaded_text, height=250, placeholder="Enter text here or upload a file above.", label_visibility="collapsed")
+            raw_text = st.text_area("Input/Raw Text", value=loaded_text, height=240, placeholder="Enter or paste text here, or upload a text file above.", label_visibility="collapsed")
 
-        with st.container():
-            st.markdown("#### Word Overrides")
-            wl_c, bl_c = st.columns(2)
-    
+            st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
+            can_process = bool(raw_text.strip())
+            process = st.button("🚀 Start Text Processing", type="primary", use_container_width=True, disabled=not can_process)
+
+        render_mascot("text")
+
     with options_col:
-        options = text_options_panel(wl_c, bl_c)
-        can_process = bool(raw_text.strip())
-        process = st.button("Start Text Processing", type="primary", use_container_width=True, disabled=not can_process)
+        tab_mod, tab_rules, tab_norm = st.tabs([
+            "🛡️ Moderation & Rules",
+            "⚙️ Replacement Style",
+            "🧹 Normalization",
+        ])
+
+        with tab_mod:
+            text_rating_preset = st.selectbox(
+                "Severity Rating Preset",
+                options=workflows.RATING_PRESETS,
+                index=0,
+                key="text_rating_preset",
+                help="Default (strict censor), PG-13 (allows mild oaths), R (allows mild & moderate swearing), NC-17 (allows all except severe slurs).",
+            )
+            st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
+            wl_c, bl_c = st.columns(2)
+            with wl_c:
+                whitelist = st.text_area("Whitelist", placeholder="Allowed words (e.g. god, damn)", height=110, key="text_whitelist_text")
+            with bl_c:
+                blacklist = st.text_area("Blacklist", placeholder="Forced censor words (e.g. idiot)", height=110, key="text_blacklist_text")
+
+        with tab_rules:
+            clean_standard = st.checkbox("Lexicon Matching", value=True, help="Detect standard profane words in dictionary.")
+            clean_obfuscated = st.checkbox("Obfuscated / Leet Speak", value=True, help="Detect leet speak, character substitutions, and obscured profanity.")
+            st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
+            style_label = st.radio("Replacement Masking", ["****", "F***", "Custom"], horizontal=True)
+            style = {"****": "A", "F***": "B", "Custom": "D"}[style_label]
+            custom = st.text_input("Custom Replacement String", value="####", disabled=style != "D")
+
+        with tab_norm:
+            p1, p2 = st.columns(2)
+            with p1:
+                normalize_unicode = st.checkbox("Unicode Cleanup", value=True)
+                expand_contractions = st.checkbox("Expand Contractions", value=False)
+                remove_urls = st.checkbox("Remove URLs", value=False)
+            with p2:
+                compact_whitespace = st.checkbox("Compact Whitespace", value=False)
+                casefold = st.checkbox("Casefold", value=False)
+                remove_emails = st.checkbox("Remove Emails", value=False)
+
+        options = {
+            "rating_preset": text_rating_preset,
+            "clean_standard": clean_standard,
+            "clean_obfuscated": clean_obfuscated,
+            "censor_style": style,
+            "custom_replacement": custom,
+            "whitelist_text": whitelist,
+            "blacklist_text": blacklist,
+            "preprocess": {
+                "normalize_unicode": normalize_unicode,
+                "expand_contractions": expand_contractions,
+                "compact_whitespace": compact_whitespace,
+                "casefold": casefold,
+                "remove_urls": remove_urls,
+                "remove_emails": remove_emails,
+            },
+        }
 
     if process and can_process:
         if options["censor_style"] == "D" and not options["custom_replacement"].strip():
