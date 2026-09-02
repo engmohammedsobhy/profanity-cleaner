@@ -12,6 +12,7 @@ import platform
 import gc
 from typing import List, Dict, Any, Tuple, Set, Callable
 from urllib.parse import quote
+from toxicity_detoxifier import end_to_end_detoxifier
 
 
 
@@ -141,7 +142,15 @@ MASCOT_AREA_HEIGHT = 600
 
 
 def calculate_toxicity_score(text: str) -> float:
-    return 0.0
+    if not text or not text.strip():
+        return 0.0
+    try:
+        res = end_to_end_detoxifier(text)
+        return float(res.get("toxicity_score", 0.0))
+    except Exception as e:
+        print(f"Error calculating toxicity: {e}")
+        return 0.0
+    
 
 def normalize_text_for_profanity(word: str) -> str: #------------------------------------------------------------------------------------------------------------------------
     
@@ -931,7 +940,11 @@ def generate_plain_text_file(transcription_result: Dict[str, Any], full_log: Lis
                 segment_words.append(word)
 
         if segment_words:
-            final_text_lines.append(" ".join(segment_words).strip())
+            sentence = " ".join(segment_words).strip()
+            if censor_profane:
+                detox_res = end_to_end_detoxifier(sentence, threshold=DEFAULT_TOXICITY_THRESHOLD)
+                sentence = detox_res.get("detoxified_text", sentence)
+            final_text_lines.append(sentence)
 
     text_content = "\n".join(final_text_lines)
 

@@ -1,10 +1,25 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
+
+# Frameworks & UI
 streamlit
+fastapi
+uvicorn
+pydantic
+
+# Core ML & Audio Processing
 torch
 torchaudio
 openai-whisper
-better_profanity
 pydub
-numpy
-python-docx
 soundfile
+numpy
+
+# Text Detoxification & Scoring (إضافاتك)
+tensorflow
+groq
+python-dotenv
+nltk
+
+# Document & Profanity Tools
+better_profanity
+python-docx
