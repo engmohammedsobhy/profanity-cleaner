@@ -12,156 +12,170 @@ import streamlit.components.v1 as components
 
 import streamlit_workflows as workflows
 
-st.set_page_config(page_title="Purity — Profanity Cleaner", page_icon="✨", layout="wide")
+st.set_page_config(page_title="Purity", layout="wide")
 
 st.markdown(
     """
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
         
         :root {
-            --bg-dark: #090d16;
-            --panel-bg: rgba(17, 24, 39, 0.7);
-            --panel-border: rgba(255, 255, 255, 0.08);
-            --accent-teal: #10b981;
-            --accent-indigo: #6366f1;
-            --accent-cyan: #06b6d4;
-            --text-main: #f3f4f6;
-            --text-muted: #9ca3af;
-            --card-radius: 16px;
+            --bg-black: #000000;
+            --card-bg: rgba(28, 28, 30, 0.68);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --apple-blue: #0984e3;
+            --apple-blue-hover: #2997ff;
+            --text-primary: #f5f5f7;
+            --text-secondary: #86868b;
+            --card-radius: 18px;
+            --pill-radius: 980px;
         }
 
         html, body, [class*="css"] {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", sans-serif;
+            -webkit-font-smoothing: antialiased;
         }
 
         .stApp {
-            background: linear-gradient(135deg, #070a12 0%, #0f172a 50%, #1e1b4b 100%);
-            color: var(--text-main);
+            background: #000000;
+            background-image: radial-gradient(circle at 50% -20%, #1c1c1e 0%, #000000 80%);
+            color: var(--text-primary);
         }
 
-        /* Glassmorphism Containers & Unified Spacing */
+        /* Narrow Middle Spacing and Compact Gaps */
         [data-testid="stVerticalBlock"] > div {
-            gap: 1.25rem !important;
+            gap: 0.85rem !important;
         }
         
         div[data-testid="stForm"], div.stContainer > div {
+            background: var(--card-bg) !important;
+            backdrop-filter: blur(25px) !important;
+            -webkit-backdrop-filter: blur(25px) !important;
+            border: 1px solid var(--card-border) !important;
             border-radius: var(--card-radius) !important;
+            padding: 1.1rem 1.25rem !important;
         }
 
         [data-testid="stSidebar"] {
-            background: rgba(15, 23, 42, 0.85) !important;
-            backdrop-filter: blur(16px) !important;
-            border-right: 1px solid var(--panel-border) !important;
+            background: rgba(0, 0, 0, 0.85) !important;
+            backdrop-filter: blur(30px) !important;
+            -webkit-backdrop-filter: blur(30px) !important;
+            border-right: 1px solid var(--card-border) !important;
         }
 
-        /* Hero Title & Subheaders */
-        .hero-title {
-            font-size: 2.5rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: -0.02em;
-            margin-bottom: 0.25rem;
-        }
-
-        .hero-subtitle {
-            color: var(--text-muted);
-            font-size: 1.05rem;
-            font-weight: 400;
-            margin-bottom: 1.25rem;
-        }
-
-        .section-header {
-            font-size: 1.15rem;
+        /* Apple Headline Typography */
+        .apple-title {
+            font-size: 2.4rem;
             font-weight: 700;
-            color: var(--text-main);
-            margin-bottom: 0.75rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            color: #ffffff;
+            letter-spacing: -0.03em;
+            margin-bottom: 0.2rem;
         }
 
-        /* Cards & Metric Strips */
+        .apple-subtitle {
+            color: var(--text-secondary);
+            font-size: 1.0rem;
+            font-weight: 400;
+            letter-spacing: -0.01em;
+            margin-bottom: 1.2rem;
+        }
+
+        .section-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-secondary);
+            margin-bottom: 0.6rem;
+        }
+
+        /* Apple Metric Strips */
         .metric-card {
-            background: rgba(30, 41, 59, 0.6);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--panel-border);
-            border-left: 4px solid var(--accent-indigo);
-            padding: 1.1rem 1.25rem;
+            background: rgba(44, 44, 46, 0.5);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--card-border);
+            padding: 1.0rem 1.2rem;
             border-radius: 14px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
             transition: transform 0.2s ease, border-color 0.2s ease;
         }
 
         .metric-card:hover {
-            transform: translateY(-2px);
-            border-color: rgba(99, 102, 241, 0.4);
+            border-color: rgba(255, 255, 255, 0.18);
         }
 
         .metric-label {
-            color: var(--text-muted);
-            font-size: 0.825rem;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.06em;
         }
 
         .metric-value {
-            font-size: 1.75rem;
-            font-weight: 800;
-            color: var(--text-main);
-            margin-top: 0.25rem;
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-top: 0.2rem;
+            letter-spacing: -0.02em;
         }
 
-        /* Primary Action Buttons */
+        /* Apple Pill Buttons */
         .stButton > button {
-            border-radius: 12px !important;
-            font-weight: 700 !important;
-            font-size: 0.95rem !important;
-            padding: 0.65rem 1.5rem !important;
-            transition: all 0.25s ease-in-out !important;
-            border: 1px solid rgba(99, 102, 241, 0.3) !important;
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(168, 85, 247, 0.2) 100%) !important;
-            color: #e0e7ff !important;
+            border-radius: var(--pill-radius) !important;
+            font-weight: 600 !important;
+            font-size: 0.9rem !important;
+            padding: 0.6rem 1.4rem !important;
+            transition: all 0.2s ease-in-out !important;
+            border: 1px solid transparent !important;
+            background: #0071e3 !important;
+            color: #ffffff !important;
+            letter-spacing: -0.01em !important;
         }
 
         .stButton > button:hover {
-            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%) !important;
+            background: #0077ed !important;
             color: #ffffff !important;
-            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4) !important;
-            transform: translateY(-2px) !important;
+            box-shadow: 0 4px 14px rgba(0, 113, 227, 0.4) !important;
+            transform: scale(1.01) !important;
+        }
+
+        .stButton > button:disabled {
+            background: rgba(255, 255, 255, 0.08) !important;
+            color: var(--text-secondary) !important;
             border-color: transparent !important;
         }
 
         /* Secondary Download Buttons */
         .stDownloadButton > button {
-            border-radius: 10px !important;
+            border-radius: var(--pill-radius) !important;
             font-weight: 600 !important;
-            border: 1px solid rgba(16, 185, 129, 0.3) !important;
-            background: rgba(16, 185, 129, 0.1) !important;
-            color: #34d399 !important;
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+            background: rgba(255, 255, 255, 0.06) !important;
+            color: var(--text-primary) !important;
         }
 
         .stDownloadButton > button:hover {
-            background: #10b981 !important;
-            color: #064e3b !important;
-            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3) !important;
+            background: rgba(255, 255, 255, 0.15) !important;
+            border-color: rgba(255, 255, 255, 0.25) !important;
+            color: #ffffff !important;
         }
 
         textarea, input, select {
             border-radius: 10px !important;
+            background: rgba(0, 0, 0, 0.3) !important;
+            border: 1px solid var(--card-border) !important;
+            color: var(--text-primary) !important;
         }
 
-        /* Custom Code Log Box */
+        /* Code Log Output */
         pre {
-            background: rgba(15, 23, 42, 0.9) !important;
-            border: 1px solid var(--panel-border) !important;
+            background: rgba(18, 18, 18, 0.95) !important;
+            border: 1px solid var(--card-border) !important;
             border-radius: 12px !important;
-            padding: 1rem !important;
-            font-family: 'JetBrains Mono', monospace !important;
-            font-size: 0.85rem !important;
+            padding: 0.9rem !important;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Mono", monospace !important;
+            font-size: 0.8rem !important;
         }
     </style>
     """,
@@ -215,11 +229,11 @@ def render_copy_button(text: str) -> None:
     components.html(
         f"""
         <button onclick='navigator.clipboard.writeText({payload})'
-                style='border:1px solid rgba(99,102,241,0.3);background:linear-gradient(135deg, #6366f1 0%, #a855f7 100%);color:#ffffff;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer;width:100%;font-family:Inter,sans-serif;box-shadow: 0 4px 15px rgba(99,102,241,0.3);'>
-            📋 Copy Cleaned Text
+                style='border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.08);color:#f5f5f7;border-radius:980px;padding:9px 14px;font-weight:600;cursor:pointer;width:100%;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:0.85rem;'>
+            Copy Cleaned Text
         </button>
         """,
-        height=46,
+        height=44,
     )
 
 
@@ -234,41 +248,36 @@ def compact_rows(rows: List[Dict[str, Any]], keys: List[str]) -> List[Dict[str, 
 
 
 def render_header() -> None:
-    top_left, top_right = st.columns([0.75, 0.25], vertical_alignment="center")
+    top_left, top_right = st.columns([0.8, 0.2], vertical_alignment="center")
     with top_left:
-        st.markdown("<div class='hero-title'>Purity Profanity Cleaner</div>", unsafe_allow_html=True)
-        st.markdown("<div class='hero-subtitle'>Advanced AI-powered profanity detection and media censorship platform.</div>", unsafe_allow_html=True)
+        st.markdown("<div class='apple-title'>Purity</div>", unsafe_allow_html=True)
+        st.markdown("<div class='apple-subtitle'>Intelligent media moderation and text profanity analysis.</div>", unsafe_allow_html=True)
     with top_right:
         render_mascot("startup")
 
 
 def render_home_page() -> None:
-    st.markdown("<div class='section-header'>🚀 Overview</div>", unsafe_allow_html=True)
-    st.markdown("Purity provides data-driven, category-aware profanity moderation for text, audio, and video content.")
+    st.markdown("<div class='section-label'>System Overview</div>", unsafe_allow_html=True)
     
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2, gap="large")
+    col1, col2 = st.columns(2, gap="small")
     with col1:
         with st.container(border=True):
-            st.markdown("### 🎥 Media Moderation")
+            st.markdown("#### Media Moderation")
             st.markdown("""
-            - **Whisper ASR Transcription:** High-accuracy word-level audio & video transcription.
-            - **Millisecond Timestamp Detection:** Pinpoint profanity for exact audio muting or bleeping.
-            - **Severity Rating Presets:** Tailor censoring using `Default`, `PG-13`, `R`, or `NC-17` presets.
-            - **Export Formats:** Generate clean audio/video, JSON logs, and clean/raw SRT subtitles.
+            - Automatic speech transcription with Whisper.
+            - Precise timestamp profanity muting or audio replacing.
+            - Customizable severity rating presets.
+            - Full subtitle SRT and JSON log exports.
             """)
     with col2:
         with st.container(border=True):
-            st.markdown("### 📝 Text NLP Moderation")
+            st.markdown("#### Text NLP Moderation")
             st.markdown("""
-            - **Document & Text Parsing:** Instant profanity analysis for text documents or raw input.
-            - **Category-Aware Profiling:** Classifies flagged tokens into `MILD`, `MODERATE`, `STRONG`, and `VERY_SEVERE`.
-            - **Custom Censor Styles:** Mask bad words with asterisks (`****`), initial-letter tags (`F***`), or custom strings.
-            - **NLP Token Tables:** Full word-token breakdowns with POS tagging and detection sources.
+            - Multi-level profanity and obfuscation identification.
+            - Category severity mapping for flagged terms.
+            - Customizable masking styles and replacement options.
+            - POS tag analytics and token dataset tables.
             """)
-            
-    st.info("👈 Use the sidebar navigation menu to choose a moderation tool.")
 
 
 def render_metric_grid(stats: Dict[str, Any], mapping: List[tuple[str, str]]) -> None:
@@ -289,11 +298,11 @@ def render_metric_grid(stats: Dict[str, Any], mapping: List[tuple[str, str]]) ->
 def render_media_result(result: Dict[str, Any]) -> None:
     if not result:
         return
-    st.markdown("<div class='section-header'>📊 Processing Summary</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-label'>Summary</div>", unsafe_allow_html=True)
     render_metric_grid(
         result.get("summary", {}),
         [
-            ("Words", "word_count"),
+            ("Total Words", "word_count"),
             ("Profanity Hits", "profane_word_count"),
             ("Flagged Segments", "flagged_count"),
         ],
@@ -301,7 +310,7 @@ def render_media_result(result: Dict[str, Any]) -> None:
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown(result.get("summary_html", ""), unsafe_allow_html=True)
 
-    st.markdown("<div class='section-header'>📥 Export Files</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-label'>Downloads</div>", unsafe_allow_html=True)
     downloads = st.columns(3)
     with downloads[0]:
         download_path(result.get("censored_path", ""), "Download Censored Media")
@@ -312,7 +321,7 @@ def render_media_result(result: Dict[str, Any]) -> None:
             for name, path in result["transcript_paths"].items():
                 download_path(path, f"Download {name.replace('_', ' ').title()}")
 
-    st.markdown("<div class='section-header'>📋 Word Log</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-label'>Word Logs</div>", unsafe_allow_html=True)
     flagged = [row for row in result.get("log", []) if row.get("is_profane")]
     table_rows = flagged or result.get("log", [])[:250]
     if table_rows:
@@ -324,12 +333,12 @@ def render_media_result(result: Dict[str, Any]) -> None:
 
 
 def render_media_tab() -> None:
-    st.markdown("<div class='section-header'>🎥 Media Moderation Pipeline</div>", unsafe_allow_html=True)
-    input_col, options_col = st.columns([1.0, 1.0], gap="large")
+    st.markdown("<div class='section-label'>Media Processing</div>", unsafe_allow_html=True)
+    input_col, options_col = st.columns([1.0, 1.0], gap="small")
 
     with input_col:
         with st.container(border=True):
-            st.markdown("### 📤 Upload Media")
+            st.markdown("#### Input File")
             uploaded_media = st.file_uploader("Input Media File", type=[ext.strip(".") for ext in workflows.MEDIA_EXTENSIONS], key="media_upload", label_visibility="collapsed")
             if uploaded_media:
                 suffix = Path(uploaded_media.name).suffix.lower()
@@ -341,11 +350,19 @@ def render_media_tab() -> None:
                         st.audio(uploaded_media)
             render_mascot("media")
 
+        with st.container(border=True):
+            st.markdown("#### Word Overrides")
+            words_a, words_b = st.columns(2)
+            with words_a:
+                whitelist = st.text_area("Whitelist", placeholder="Allowed words", height=82)
+            with words_b:
+                blacklist = st.text_area("Blacklist", placeholder="Forced censor words", height=82)
+
     with options_col:
         with st.container(border=True):
-            st.markdown("### ⚙️ Moderation Settings")
+            st.markdown("#### Moderation & Audio")
             media_rating_preset = st.selectbox(
-                "Profanity Severity Rating Preset",
+                "Severity Rating Preset",
                 options=workflows.RATING_PRESETS,
                 index=0,
                 help="Default (strict censor), PG-13 (allows mild oaths), R (allows mild & moderate swearing), NC-17 (allows all except severe slurs).",
@@ -362,10 +379,10 @@ def render_media_tab() -> None:
                 if uploaded_custom_sound:
                     custom_sound_path = workflows.save_uploaded_file(uploaded_custom_sound, "profanity_cleaner_custom")
                     
-            censor_volume = st.slider("Censor Sound Volume (dB)", min_value=-30.0, max_value=30.0, value=0.0, step=1.0, disabled=mode != "sound", help="Adjust volume of the censor tone relative to original audio.")
+            censor_volume = st.slider("Censor Sound Volume (dB)", min_value=-30.0, max_value=30.0, value=0.0, step=1.0, disabled=mode != "sound")
 
         with st.container(border=True):
-            st.markdown("### 📄 Transcript Export Options")
+            st.markdown("#### Transcript Exports")
             out_cols = st.columns(5)
             with out_cols[0]:
                 export_raw_txt = st.checkbox("Raw .txt", value=False)
@@ -378,15 +395,7 @@ def render_media_tab() -> None:
             with out_cols[4]:
                 export_json = st.checkbox("Log .json", value=True)
 
-        with st.container(border=True):
-            st.markdown("### 🔍 Custom Word Overrides")
-            words_a, words_b = st.columns(2)
-            with words_a:
-                whitelist = st.text_area("Media Whitelist", placeholder="words to allow", height=86)
-            with words_b:
-                blacklist = st.text_area("Media Blacklist", placeholder="words to force-censor", height=86)
-
-        process = st.button("▶ Start Media Processing", type="primary", use_container_width=True, disabled=uploaded_media is None)
+        process = st.button("Start Media Processing", type="primary", use_container_width=True, disabled=uploaded_media is None)
 
     if process and uploaded_media:
         progress_slot = st.progress(0)
@@ -421,11 +430,11 @@ def render_media_tab() -> None:
             render_media_result(st.session_state.media_result)
 
 
-def text_options_panel() -> Dict[str, Any]:
+def text_options_panel(whitelist_col: Any, blacklist_col: Any) -> Dict[str, Any]:
     with st.container(border=True):
-        st.markdown("### ⚙️ Rating & Censor Rules")
+        st.markdown("#### Rating & Rules")
         text_rating_preset = st.selectbox(
-            "Profanity Severity Preset",
+            "Severity Rating Preset",
             options=workflows.RATING_PRESETS,
             index=0,
             key="text_rating_preset",
@@ -434,17 +443,17 @@ def text_options_panel() -> Dict[str, Any]:
 
         rules_col, style_col = st.columns([1, 1])
         with rules_col:
-            st.markdown("**Detection Rules**")
+            st.markdown("<div class='section-label'>Rules</div>", unsafe_allow_html=True)
             clean_standard = st.checkbox("Lexicon Matching", value=True)
             clean_obfuscated = st.checkbox("Obfuscated / Leet Speak", value=True)
         with style_col:
-            st.markdown("**Censor Style**")
+            st.markdown("<div class='section-label'>Style</div>", unsafe_allow_html=True)
             style_label = st.radio("Replacement", ["****", "F***", "Custom"], horizontal=True)
             style = {"****": "A", "F***": "B", "Custom": "D"}[style_label]
-            custom = st.text_input("Custom Replacement String", value="####", disabled=style != "D")
+            custom = st.text_input("Custom String", value="####", disabled=style != "D")
 
     with st.container(border=True):
-        st.markdown("### 🧹 Preprocessing & Normalization")
+        st.markdown("#### Normalization")
         p1, p2, p3 = st.columns(3)
         with p1:
             normalize_unicode = st.checkbox("Unicode Cleanup", value=True)
@@ -456,13 +465,10 @@ def text_options_panel() -> Dict[str, Any]:
             remove_urls = st.checkbox("Remove URLs", value=False)
             remove_emails = st.checkbox("Remove Emails", value=False)
 
-    with st.container(border=True):
-        st.markdown("### 🔍 Custom Word Overrides")
-        wl_col, bl_col = st.columns(2)
-        with wl_col:
-            whitelist = st.text_area("Text Whitelist", placeholder="words to allow", height=82)
-        with bl_col:
-            blacklist = st.text_area("Text Blacklist", placeholder="words to force-censor", height=82)
+    with whitelist_col:
+        whitelist = st.text_area("Whitelist", placeholder="Allowed words", height=82)
+    with blacklist_col:
+        blacklist = st.text_area("Blacklist", placeholder="Forced censor words", height=82)
 
     return {
         "rating_preset": text_rating_preset,
@@ -486,7 +492,7 @@ def text_options_panel() -> Dict[str, Any]:
 def render_text_result(result: Dict[str, Any]) -> None:
     if not result:
         return
-    st.markdown("<div class='section-header'>📊 Analysis & Cleaned Output</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-label'>Results</div>", unsafe_allow_html=True)
     stats = result.get("stats", {})
     render_metric_grid(
         stats,
@@ -504,10 +510,10 @@ def render_text_result(result: Dict[str, Any]) -> None:
         st.text_area("Cleaned Output Text", value=result.get("cleaned_text", ""), height=220)
     with result_cols[1]:
         render_copy_button(result.get("cleaned_text", ""))
-        st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
-        st.download_button("📥 Download Cleaned Text", result.get("cleaned_text", "").encode("utf-8"), file_name="profanity_cleaned_text.txt", mime="text/plain", use_container_width=True)
+        st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
+        st.download_button("Download Cleaned Text", result.get("cleaned_text", "").encode("utf-8"), file_name="profanity_cleaned_text.txt", mime="text/plain", use_container_width=True)
         st.download_button(
-            "📥 Download NLP JSON",
+            "Download NLP JSON",
             json.dumps(result, indent=2, ensure_ascii=False).encode("utf-8"),
             file_name="profanity_text_analysis.json",
             mime="application/json",
@@ -516,7 +522,7 @@ def render_text_result(result: Dict[str, Any]) -> None:
         if result.get("output_path"):
             download_path(result["output_path"], "Download Saved File")
 
-    st.markdown("<div class='section-header'>📋 Data Breakdown</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-label'>Details</div>", unsafe_allow_html=True)
     token_tab, flagged_tab, sent_tab, vocab_tab = st.tabs(["Word Tokens", "Flagged Tokens", "Sentences", "Vocabulary Stats"])
     with token_tab:
         token_keys = ["index", "text", "normalized", "lemma", "pos_guess", "severity_category", "token_type", "start", "end", "is_stopword", "detection_source"]
@@ -534,20 +540,20 @@ def render_text_result(result: Dict[str, Any]) -> None:
         pos_counts = [{"pos": pos, "count": count} for pos, count in stats.get("pos_counts", {}).items()]
         left, right = st.columns(2)
         with left:
-            st.markdown("**Top Frequent Terms**")
+            st.markdown("<div class='section-label'>Top Frequent Terms</div>", unsafe_allow_html=True)
             st.dataframe(top_terms, use_container_width=True, hide_index=True)
         with right:
-            st.markdown("**POS Tag Distribution**")
+            st.markdown("<div class='section-label'>POS Tag Distribution</div>", unsafe_allow_html=True)
             st.dataframe(pos_counts, use_container_width=True, hide_index=True)
 
 
 def render_text_tab() -> None:
-    st.markdown("<div class='section-header'>📝 Text NLP Moderation Pipeline</div>", unsafe_allow_html=True)
-    input_col, options_col = st.columns([1.0, 1.0], gap="large")
+    st.markdown("<div class='section-label'>Text NLP Analysis</div>", unsafe_allow_html=True)
+    input_col, options_col = st.columns([1.0, 1.0], gap="small")
     
     with input_col:
         with st.container(border=True):
-            st.markdown("### 📄 Input Text")
+            st.markdown("#### Input Text")
             uploaded_text = st.file_uploader("Upload Text File", type=[ext.strip(".") for ext in workflows.TEXT_EXTENSIONS], key="text_upload", label_visibility="collapsed")
             uploaded_path = ""
             loaded_text = ""
@@ -555,12 +561,16 @@ def render_text_tab() -> None:
                 uploaded_path = workflows.save_uploaded_file(uploaded_text, "profanity_cleaner_text")
                 loaded_text = workflows.read_text_file(uploaded_path)
 
-            raw_text = st.text_area("Input/Raw Text", value=loaded_text, height=270, placeholder="Enter text here or load a file above.", label_visibility="collapsed")
+            raw_text = st.text_area("Input/Raw Text", value=loaded_text, height=250, placeholder="Enter text here or upload a file above.", label_visibility="collapsed")
+
+        with st.container(border=True):
+            st.markdown("#### Word Overrides")
+            wl_c, bl_c = st.columns(2)
     
     with options_col:
-        options = text_options_panel()
+        options = text_options_panel(wl_c, bl_c)
         can_process = bool(raw_text.strip())
-        process = st.button("▶ Start Text Processing", type="primary", use_container_width=True, disabled=not can_process)
+        process = st.button("Start Text Processing", type="primary", use_container_width=True, disabled=not can_process)
 
     if process and can_process:
         if options["censor_style"] == "D" and not options["custom_replacement"].strip():
@@ -590,10 +600,10 @@ def main() -> None:
     init_state()
     
     with st.sidebar:
-        st.markdown("<h2 style='font-size: 1.25rem; font-weight: 700;'>🧭 Navigation</h2>", unsafe_allow_html=True)
-        st.button("🏠 Home Overview", use_container_width=True, type="primary" if st.session_state.current_page == "Home" else "secondary", on_click=set_page, args=("Home",))
-        st.button("🎥 Media Moderation", use_container_width=True, type="primary" if st.session_state.current_page == "Media Moderation" else "secondary", on_click=set_page, args=("Media Moderation",))
-        st.button("📝 Text NLP Moderation", use_container_width=True, type="primary" if st.session_state.current_page == "Text NLP" else "secondary", on_click=set_page, args=("Text NLP",))
+        st.markdown("<div class='section-label' style='margin-top:0.5rem;'>Navigation</div>", unsafe_allow_html=True)
+        st.button("Home", use_container_width=True, type="primary" if st.session_state.current_page == "Home" else "secondary", on_click=set_page, args=("Home",))
+        st.button("Media Moderation", use_container_width=True, type="primary" if st.session_state.current_page == "Media Moderation" else "secondary", on_click=set_page, args=("Media Moderation",))
+        st.button("Text NLP Moderation", use_container_width=True, type="primary" if st.session_state.current_page == "Text NLP" else "secondary", on_click=set_page, args=("Text NLP",))
         
     page = st.session_state.current_page
         
