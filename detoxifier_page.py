@@ -104,7 +104,7 @@ def _render_result(result: Dict[str, Any]) -> None:
  
 def render_toxicity_tab() -> None:
     _init_toxicity_state()
- 
+
     with st.container():
         raw_text = st.text_area(
             "Input Text",
@@ -113,8 +113,20 @@ def render_toxicity_tab() -> None:
             placeholder="Enter or paste a comment/message to analyze and detoxify.",
             label_visibility="collapsed",
         )
- 
+
         st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
+        
+        st.markdown(
+            """
+            <style>
+            div[data-testid="stSlider"] {
+                direction: ltr !important;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+
         threshold = st.slider(
             "Toxicity Threshold",
             min_value=0.0,
@@ -123,7 +135,7 @@ def render_toxicity_tab() -> None:
             step=0.05,
             help="Comments scoring above this threshold get rewritten by the LLM.",
         )
- 
+
         st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
         can_process = bool(raw_text.strip())
         process = st.button(
@@ -132,7 +144,7 @@ def render_toxicity_tab() -> None:
             use_container_width=True,
             disabled=not can_process,
         )
- 
+
     if process and can_process:
         with st.spinner("Analyzing and detoxifying text..."):
             try:
