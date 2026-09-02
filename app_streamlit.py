@@ -367,6 +367,12 @@ def render_media_tab() -> None:
                         st.audio(uploaded_media)
             render_mascot("media")
 
+    if not uploaded_media:
+        with options_col:
+            st.info("👈 Please upload an audio or video file to reveal moderation & audio censoring options.")
+        return
+
+    with input_col:
         with st.container(border=True):
             st.markdown("#### Moderation")
             media_rating_preset = st.selectbox(
@@ -379,47 +385,61 @@ def render_media_tab() -> None:
 
             if "whitelist_options" not in st.session_state:
                 st.session_state.whitelist_options = ["god", "damn", "hell", "crap", "bloody"]
-            
+            if "whitelist_tags_ms" not in st.session_state:
+                st.session_state.whitelist_tags_ms = []
+
+            def _add_whitelist_word():
+                val = st.session_state.get("add_w_input", "").strip().lower()
+                if val:
+                    for w in val.replace(",", " ").split():
+                        if w not in st.session_state.whitelist_options:
+                            st.session_state.whitelist_options.append(w)
+                        if w not in st.session_state.whitelist_tags_ms:
+                            st.session_state.whitelist_tags_ms.append(w)
+                    st.session_state.add_w_input = ""
+
             selected_whitelist = st.multiselect(
                 "Whitelist (Allowed Words)",
                 options=st.session_state.whitelist_options,
-                default=[],
                 help="Words to allow/skip during censoring. Select from pill tags or type custom word below.",
                 key="whitelist_tags_ms",
             )
 
             w_add_c1, w_add_c2 = st.columns([0.7, 0.3])
             with w_add_c1:
-                new_w = st.text_input("Add Whitelist Word", key="add_w_input", placeholder="+ Add allowed word...", label_visibility="collapsed")
+                st.text_input("Add Whitelist Word", key="add_w_input", placeholder="+ Add allowed word...", label_visibility="collapsed", on_change=_add_whitelist_word)
             with w_add_c2:
-                if st.button("Add Word", key="btn_add_w", use_container_width=True) and new_w:
-                    w_clean = new_w.strip().lower()
-                    if w_clean and w_clean not in st.session_state.whitelist_options:
-                        st.session_state.whitelist_options.append(w_clean)
-                        st.rerun()
+                st.button("Add Word", key="btn_add_w", use_container_width=True, on_click=_add_whitelist_word)
 
             st.markdown("<br>", unsafe_allow_html=True)
 
             if "blacklist_options" not in st.session_state:
                 st.session_state.blacklist_options = ["idiot", "fool", "stupid", "dumb", "jerk"]
+            if "blacklist_tags_ms" not in st.session_state:
+                st.session_state.blacklist_tags_ms = []
+
+            def _add_blacklist_word():
+                val = st.session_state.get("add_b_input", "").strip().lower()
+                if val:
+                    for b in val.replace(",", " ").split():
+                        if b not in st.session_state.blacklist_options:
+                            st.session_state.blacklist_options.append(b)
+                        if b not in st.session_state.blacklist_tags_ms:
+                            st.session_state.blacklist_tags_ms.append(b)
+                    st.session_state.add_b_input = ""
 
             selected_blacklist = st.multiselect(
                 "Blacklist (Forced Censor Words)",
                 options=st.session_state.blacklist_options,
-                default=[],
                 help="Words to force censor. Select from pill tags or type custom word below.",
                 key="blacklist_tags_ms",
             )
 
             b_add_c1, b_add_c2 = st.columns([0.7, 0.3])
             with b_add_c1:
-                new_b = st.text_input("Add Blacklist Word", key="add_b_input", placeholder="+ Add forced censor word...", label_visibility="collapsed")
+                st.text_input("Add Blacklist Word", key="add_b_input", placeholder="+ Add forced censor word...", label_visibility="collapsed", on_change=_add_blacklist_word)
             with b_add_c2:
-                if st.button("Add Word", key="btn_add_b", use_container_width=True) and new_b:
-                    b_clean = new_b.strip().lower()
-                    if b_clean and b_clean not in st.session_state.blacklist_options:
-                        st.session_state.blacklist_options.append(b_clean)
-                        st.rerun()
+                st.button("Add Word", key="btn_add_b", use_container_width=True, on_click=_add_blacklist_word)
 
     with options_col:
         with st.container(border=True):
