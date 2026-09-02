@@ -199,15 +199,6 @@ def check_for_profanity(word: str, use_obfuscation_check: bool) -> bool: #------
     if normalized_word and normalized_word in GLOBAL_WHITELIST_WORDS:
         return False
 
-    # Inflection whitelist match: check if the base/root of the word is whitelisted
-    if normalized_word:
-        _SUFFIXES = ('ing', 'ings', 'tion', 'tions', 'ed', 'er', 'ers', 'est', 'ly', 'ish', 'ness', 's')
-        for suffix in _SUFFIXES:
-            if normalized_word.endswith(suffix):
-                root = normalized_word[:-len(suffix)]
-                if len(root) >= 3 and root in GLOBAL_WHITELIST_WORDS:
-                    return False
-
     if normalized_word and normalized_word in GLOBAL_BLACKLIST_WORDS:
         return True
 

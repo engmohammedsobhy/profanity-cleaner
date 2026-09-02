@@ -111,8 +111,6 @@ class SentenceAnalysis:
     start: int
     end: int
     word_count: int
-    toxicity_score: float
-    is_toxic: bool
     replacement: str = ""
 
 
@@ -267,16 +265,6 @@ def classify_profanity_token(word: str, whitelist: Set[str], blacklist: Set[str]
         result["severity_category"] = "WHITELISTED"
         return result
 
-    if normalized:
-        _SUFFIXES = ("ing", "ings", "tion", "tions", "ed", "er", "ers", "est", "ly", "ish", "ness", "s")
-        for suffix in _SUFFIXES:
-            if normalized.endswith(suffix):
-                root = normalized[:-len(suffix)]
-                if len(root) >= 3 and root in whitelist:
-                    result["is_whitelisted"] = True
-                    result["detection_source"] = "whitelist_inflection"
-                    result["severity_category"] = "WHITELISTED"
-                    return result
     if normalized and normalized in blacklist:
         result["is_profane"] = True
         result["is_blacklisted"] = True
@@ -428,77 +416,18 @@ def analyze_tokens(text: str, whitelist: Set[str], blacklist: Set[str], use_obfu
         ))
     return rows
 
-def load_toxicity_model(progress_callback: Any = None) -> bool:
-    global TOXICITY_MODEL, TOXICITY_TOKENIZER, TOXICITY_DEVICE
-    if TOXICITY_MODEL is not None and TOXICITY_TOKENIZER is not None:
-        return True
-    if torch is None or AutoTokenizer is None or AutoModelForSequenceClassification is None:
-        emit(progress_callback, "Toxicity libraries are not installed.")
-        return False
-    try:
-        emit(progress_callback, f"Loading toxicity model on {TOXICITY_DEVICE}.")
-        model_name = "unitary/toxic-bert"
-        TOXICITY_TOKENIZER = AutoTokenizer.from_pretrained(model_name)
-        TOXICITY_MODEL = AutoModelForSequenceClassification.from_pretrained(model_name)
-        TOXICITY_MODEL.to(TOXICITY_DEVICE)
-        emit(progress_callback, "Toxicity model loaded.")
-        return True
-    except Exception as exc:
-        emit(progress_callback, f"Toxicity model could not be loaded: {exc}")
-        return False
-
-
-def calculate_toxicity_score(text: str) -> float:
-    if torch is None or F is None or TOXICITY_MODEL is None or TOXICITY_TOKENIZER is None:
-        return 0.0
-    if len(text.split()) < MIN_TOXICITY_WORD_COUNT:
-        return 0.0
-    inputs = TOXICITY_TOKENIZER(text, return_tensors="pt", truncation=True, padding=True)
-    inputs = {key: value.to(TOXICITY_DEVICE) for key, value in inputs.items()}
-    TOXICITY_MODEL.eval()
-    with torch.no_grad():
-        outputs = TOXICITY_MODEL(**inputs)
-    probabilities = F.softmax(outputs.logits, dim=-1)
-    toxic_index = TOXICITY_MODEL.config.label2id.get("toxic")
-    if toxic_index is not None and probabilities.size(1) > toxic_index:
-        return probabilities[0][toxic_index].float().item()
-    return 0.5
-
-
-def analyze_sentences(text: str, check_toxicity: bool, threshold: float) -> List[SentenceAnalysis]:
+def analyze_sentences(text: str) -> List[SentenceAnalysis]:
     sentences: List[SentenceAnalysis] = []
     for index, (sentence, start, end) in enumerate(split_sentences(text), start=1):
         words = [token for token, _, _ in tokenize_text(sentence) if classify_token_type(token) == "word"]
-        score = calculate_toxicity_score(sentence.strip()) if check_toxicity and len(words) >= MIN_TOXICITY_WORD_COUNT else 0.0
         sentences.append(SentenceAnalysis(
             index=index,
             text=sentence.strip(),
             start=start,
             end=end,
             word_count=len(words),
-            toxicity_score=round(score, 4),
-            is_toxic=score >= threshold if check_toxicity else False,
         ))
     return sentences
-
-
-def replace_toxic_sentences(text: str, sentences: Sequence[SentenceAnalysis], style: str, custom_replacement: str) -> Tuple[str, List[SentenceAnalysis]]:
-    pieces: List[str] = []
-    cursor = 0
-    replaced: List[SentenceAnalysis] = []
-    for sentence in sentences:
-        if not sentence.is_toxic:
-            continue
-        replacement = f"[{format_censored_word('TOXIC', style, custom_replacement) * 4}]"
-        pieces.append(text[cursor:sentence.start])
-        pieces.append(replacement)
-        cursor = sentence.end
-        sentence.replacement = replacement
-        replaced.append(sentence)
-    if not replaced:
-        return text, []
-    pieces.append(text[cursor:])
-    return "".join(pieces), replaced
 
 
 def summarize_text(raw_text: str, processed_text: str, cleaned_text: str, tokens: Sequence[TokenAnalysis], sentences: Sequence[SentenceAnalysis], preprocessing_steps: Sequence[str]) -> Dict[str, Any]:
@@ -507,7 +436,6 @@ def summarize_text(raw_text: str, processed_text: str, cleaned_text: str, tokens
     term_counts = Counter(terms)
     pos_counts = Counter(token.pos_guess for token in word_tokens)
     profane = [token for token in word_tokens if token.is_profane]
-    toxic = [sentence for sentence in sentences if sentence.is_toxic]
     avg_len = sum(len(term) for term in terms) / len(terms) if terms else 0.0
     return {
         "raw_characters": len(raw_text),
@@ -522,8 +450,6 @@ def summarize_text(raw_text: str, processed_text: str, cleaned_text: str, tokens
         "obfuscated_word_count": sum(1 for token in profane if token.is_obfuscated),
         "blacklist_hits": sum(1 for token in profane if token.is_blacklisted),
         "whitelist_hits": sum(1 for token in word_tokens if token.is_whitelisted),
-        "toxic_sentence_count": len(toxic),
-        "max_toxicity_score": round(max((sentence.toxicity_score for sentence in sentences), default=0.0), 4),
         "url_count": sum(1 for token in tokens if token.token_type == "url"),
         "email_count": sum(1 for token in tokens if token.token_type == "email"),
         "number_count": sum(1 for token in tokens if token.token_type == "number"),
@@ -551,8 +477,6 @@ def process_text_content(raw_text: str, options: Dict[str, Any], file_path: str 
     processed_text, preprocessing_steps = preprocess_text(raw_text, options.get("preprocess", {}))
     clean_standard = bool(options.get("clean_standard", True))
     clean_obfuscated = bool(options.get("clean_obfuscated", True))
-    clean_toxicity = bool(options.get("clean_toxicity", False))
-    threshold = float(options.get("toxicity_threshold", DEFAULT_TOXICITY_THRESHOLD))
     style = options.get("censor_style", "A")
     custom = options.get("custom_replacement", "****")
 
@@ -569,8 +493,7 @@ def process_text_content(raw_text: str, options: Dict[str, Any], file_path: str 
     cleaned_text = "".join(parts)
 
     emit(progress_callback, 50)
-    toxicity_ready = load_toxicity_model(progress_callback) if clean_toxicity else False
-    sentences = analyze_sentences(cleaned_text, toxicity_ready, threshold)
+    sentences = analyze_sentences(cleaned_text)
     toxic_replacements: List[SentenceAnalysis] = []
     if clean_toxicity and toxicity_ready:
         cleaned_text, toxic_replacements = replace_toxic_sentences(cleaned_text, sentences, style, custom)
@@ -586,17 +509,11 @@ def process_text_content(raw_text: str, options: Dict[str, Any], file_path: str 
             handle.write(cleaned_text)
         emit(progress_callback, f"Cleaned text saved to: {output_path}")
 
-    final_sentences = analyze_sentences(cleaned_text, False, threshold)
-    final_sentences.extend(toxic_replacements)
-    final_sentences = sorted(final_sentences, key=lambda row: (row.start, row.index))
+    final_sentences = analyze_sentences(cleaned_text)
     stats = summarize_text(raw_text, processed_text, cleaned_text, tokens, final_sentences, preprocessing_steps)
     flags = []
     if stats["profane_word_count"]:
         flags.append(f"Lexicon/obfuscation censor applied ({stats['profane_word_count']} word(s)).")
-    if toxic_replacements:
-        flags.append(f"Toxicity censor applied ({len(toxic_replacements)} segment(s)).")
-    elif clean_toxicity:
-        flags.append("Toxicity check completed with no toxic segments.")
     if not flags:
         flags.append("No flags detected.")
 
@@ -606,8 +523,7 @@ def process_text_content(raw_text: str, options: Dict[str, Any], file_path: str 
         f"Cleaned Length: {len(cleaned_text)} characters\n"
         f"Words: {stats['word_count']}\n"
         f"Unique Terms: {stats['unique_terms']}\n"
-        f"Profanity Hits: {stats['profane_word_count']}\n"
-        f"Toxic Sentences: {stats['toxic_sentence_count']}\n\n"
+        f"Profanity Hits: {stats['profane_word_count']}\n\n"
         f"{'Output File Saved: ' + output_path if output_path else 'Results displayed in the app.'}\n\n"
         "Detections:\n- " + "\n- ".join(flags)
     )
@@ -624,7 +540,6 @@ def process_text_content(raw_text: str, options: Dict[str, Any], file_path: str 
         "sentences": [asdict(sentence) for sentence in final_sentences],
         "stats": stats,
         "flagged_tokens": [asdict(token) for token in tokens if token.is_profane],
-        "toxic_sentences": [asdict(sentence) for sentence in final_sentences if sentence.is_toxic],
     }
 
 
@@ -773,12 +688,7 @@ def process_media_file(file_path: str, options: Dict[str, Any], progress_callbac
     emit(progress_callback, f"Loaded {len(b.GLOBAL_BLACKLIST_WORDS)} blacklist word(s).")
 
     asr_model = options.get("asr_model", "base.en")
-    analyze_toxicity = bool(options.get("analyze_toxicity", False))
-    censor_toxic = bool(options.get("censor_toxic", False))
-    use_vad = bool(options.get("use_vad", True))
-    toxicity_threshold = float(options.get("toxicity_threshold", DEFAULT_TOXICITY_THRESHOLD))
-
-    b.load_ml_resources(progress_callback, analyze_toxicity, asr_model)
+    b.load_ml_resources(progress_callback, False, asr_model)
 
     emit(progress_value_callback, 5)
     pre_converted = b.pre_convert_to_wav(file_path, progress_callback)
@@ -786,18 +696,14 @@ def process_media_file(file_path: str, options: Dict[str, Any], progress_callbac
         temp_files.append(pre_converted)
 
     emit(progress_value_callback, 10)
-    if use_vad:
-        vad_path = b.apply_vad_filtering(pre_converted, progress_callback)
-    else:
-        vad_path = pre_converted
-        emit(progress_callback, "VAD speech filtering bypassed by user configuration.")
+    vad_path = b.apply_vad_filtering(pre_converted, progress_callback)
     if vad_path != pre_converted:
         temp_files.append(vad_path)
 
     emit(progress_value_callback, 15)
     transcription = b.transcribe_audio(vad_path, progress_callback)
     emit(progress_callback, "Generating word-level log and transcript exports.")
-    log = b.generate_conversation_log(transcription, toxicity_threshold, analyze_toxicity)
+    log = b.generate_conversation_log(transcription, 0.0, False)
 
     base, _ = os.path.splitext(file_path)
     log_path = None
@@ -822,7 +728,7 @@ def process_media_file(file_path: str, options: Dict[str, Any], progress_callbac
         base,
         log,
         options.get("mode", "sound"),
-        censor_toxic,
+        False,
         options.get("sound", "B"),
         options.get("custom_sound_path", ""),
         options.get("censor_volume", 0.0),

@@ -12,32 +12,157 @@ import streamlit.components.v1 as components
 
 import streamlit_workflows as workflows
 
-st.set_page_config(page_title="Profanity Cleaner", page_icon="??", layout="wide")
+st.set_page_config(page_title="Purity — Profanity Cleaner", page_icon="✨", layout="wide")
 
 st.markdown(
     """
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
         :root {
-            --bg: #0a0c10;
-            --panel: rgba(23, 27, 34, 0.6);
-            --line: rgba(42, 48, 57, 0.5);
-            --text: #eef2f7;
-            --muted: #9aa4b2;
-            --teal: #2dd4bf;
-            --amber: #f59e0b;
-            --rose: #fb7185;
+            --bg-dark: #090d16;
+            --panel-bg: rgba(17, 24, 39, 0.7);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --accent-teal: #10b981;
+            --accent-indigo: #6366f1;
+            --accent-cyan: #06b6d4;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --card-radius: 16px;
         }
-        .stApp { background: linear-gradient(135deg, #0a0c10 0%, #1a1f29 100%); color: var(--text); }
-        h1, h2, h3 { letter-spacing: 0; font-weight: 700; }
-        [data-testid="stSidebar"] { background: rgba(17,21,28,0.7); backdrop-filter: blur(10px); border-right: 1px solid var(--line); }
-        .hero-title { font-size: 2.8rem; font-weight: 800; background: -webkit-linear-gradient(45deg, var(--teal), var(--amber)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0 0 .2rem 0; }
-        .subtle { color: var(--muted); }
-        .metric-strip { border: 1px solid var(--line); border-left: 4px solid var(--teal); padding: 1rem; background: var(--panel); backdrop-filter: blur(8px); border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .result-box { border: 1px solid var(--line); padding: 1rem; background: rgba(17,21,28,0.8); border-radius: 12px; }
-        .stButton > button, .stDownloadButton > button { border-radius: 8px; font-weight: 700; transition: all 0.3s ease; border: 1px solid var(--teal); background: rgba(45, 212, 191, 0.1); color: var(--teal); }
-        .stButton > button:hover, .stDownloadButton > button:hover { background: var(--teal); color: #0a0c10; box-shadow: 0 4px 15px rgba(45,212,191,0.4); transform: translateY(-2px); border-color: var(--teal); }
-        textarea, input { border-radius: 8px !important; }
-        pre { white-space: pre-wrap; border: 1px solid var(--line); padding: .8rem; border-radius: 12px; background: rgba(16,20,27,0.8); backdrop-filter: blur(8px); }
+
+        html, body, [class*="css"] {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .stApp {
+            background: linear-gradient(135deg, #070a12 0%, #0f172a 50%, #1e1b4b 100%);
+            color: var(--text-main);
+        }
+
+        /* Glassmorphism Containers & Unified Spacing */
+        [data-testid="stVerticalBlock"] > div {
+            gap: 1.25rem !important;
+        }
+        
+        div[data-testid="stForm"], div.stContainer > div {
+            border-radius: var(--card-radius) !important;
+        }
+
+        [data-testid="stSidebar"] {
+            background: rgba(15, 23, 42, 0.85) !important;
+            backdrop-filter: blur(16px) !important;
+            border-right: 1px solid var(--panel-border) !important;
+        }
+
+        /* Hero Title & Subheaders */
+        .hero-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.25rem;
+        }
+
+        .hero-subtitle {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            font-weight: 400;
+            margin-bottom: 1.25rem;
+        }
+
+        .section-header {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Cards & Metric Strips */
+        .metric-card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--panel-border);
+            border-left: 4px solid var(--accent-indigo);
+            padding: 1.1rem 1.25rem;
+            border-radius: 14px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(99, 102, 241, 0.4);
+        }
+
+        .metric-label {
+            color: var(--text-muted);
+            font-size: 0.825rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .metric-value {
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-top: 0.25rem;
+        }
+
+        /* Primary Action Buttons */
+        .stButton > button {
+            border-radius: 12px !important;
+            font-weight: 700 !important;
+            font-size: 0.95rem !important;
+            padding: 0.65rem 1.5rem !important;
+            transition: all 0.25s ease-in-out !important;
+            border: 1px solid rgba(99, 102, 241, 0.3) !important;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(168, 85, 247, 0.2) 100%) !important;
+            color: #e0e7ff !important;
+        }
+
+        .stButton > button:hover {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%) !important;
+            color: #ffffff !important;
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4) !important;
+            transform: translateY(-2px) !important;
+            border-color: transparent !important;
+        }
+
+        /* Secondary Download Buttons */
+        .stDownloadButton > button {
+            border-radius: 10px !important;
+            font-weight: 600 !important;
+            border: 1px solid rgba(16, 185, 129, 0.3) !important;
+            background: rgba(16, 185, 129, 0.1) !important;
+            color: #34d399 !important;
+        }
+
+        .stDownloadButton > button:hover {
+            background: #10b981 !important;
+            color: #064e3b !important;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3) !important;
+        }
+
+        textarea, input, select {
+            border-radius: 10px !important;
+        }
+
+        /* Custom Code Log Box */
+        pre {
+            background: rgba(15, 23, 42, 0.9) !important;
+            border: 1px solid var(--panel-border) !important;
+            border-radius: 12px !important;
+            padding: 1rem !important;
+            font-family: 'JetBrains Mono', monospace !important;
+            font-size: 0.85rem !important;
+        }
     </style>
     """,
     unsafe_allow_html=True,
@@ -82,7 +207,7 @@ def download_path(path: str, label: str) -> None:
     if not path or not os.path.exists(path):
         return
     mime, _ = mimetypes.guess_type(path)
-    st.download_button(label, file_bytes(path), file_name=os.path.basename(path), mime=mime or "application/octet-stream")
+    st.download_button(label, file_bytes(path), file_name=os.path.basename(path), mime=mime or "application/octet-stream", use_container_width=True)
 
 
 def render_copy_button(text: str) -> None:
@@ -90,8 +215,8 @@ def render_copy_button(text: str) -> None:
     components.html(
         f"""
         <button onclick='navigator.clipboard.writeText({payload})'
-                style='border:1px solid #2a3039;background:#2dd4bf;color:#071015;border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer;width:100%;'>
-            Copy Cleaned Text
+                style='border:1px solid rgba(99,102,241,0.3);background:linear-gradient(135deg, #6366f1 0%, #a855f7 100%);color:#ffffff;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer;width:100%;font-family:Inter,sans-serif;box-shadow: 0 4px 15px rgba(99,102,241,0.3);'>
+            📋 Copy Cleaned Text
         </button>
         """,
         height=46,
@@ -109,62 +234,74 @@ def compact_rows(rows: List[Dict[str, Any]], keys: List[str]) -> List[Dict[str, 
 
 
 def render_header() -> None:
-    top_left, top_right = st.columns([0.7, 0.3], vertical_alignment="center")
+    top_left, top_right = st.columns([0.75, 0.25], vertical_alignment="center")
     with top_left:
-        st.markdown("<div class='hero-title'>Profanity Cleaner</div>", unsafe_allow_html=True)
-        st.markdown("<span class='subtle'>Content moderation for media, transcripts, and word-level NLP analysis.</span>", unsafe_allow_html=True)
+        st.markdown("<div class='hero-title'>Purity Profanity Cleaner</div>", unsafe_allow_html=True)
+        st.markdown("<div class='hero-subtitle'>Advanced AI-powered profanity detection and media censorship platform.</div>", unsafe_allow_html=True)
     with top_right:
         render_mascot("startup")
 
 
 def render_home_page() -> None:
-    st.markdown("## Welcome to Profanity Cleaner")
-    st.markdown("This powerful web application allows you to automatically detect and censor profanity from audio, video, and text files.")
+    st.markdown("<div class='section-header'>🚀 Overview</div>", unsafe_allow_html=True)
+    st.markdown("Purity provides data-driven, category-aware profanity moderation for text, audio, and video content.")
     
-    st.divider()
+    st.markdown("<br>", unsafe_allow_html=True)
     
     col1, col2 = st.columns(2, gap="large")
     with col1:
-        st.markdown("""
-        ### 🎥 Media Moderation
-        - **Automatic Transcription:** Uses Whisper AI to perfectly transcribe video and audio.
-        - **Timestamp Detection:** Detects profanity at the exact millisecond.
-        - **Smart Censoring:** Mutes or replaces the profanity with a custom sound seamlessly.
-        - **Export:** Download raw and clean text or SRT transcripts.
-        """)
+        with st.container(border=True):
+            st.markdown("### 🎥 Media Moderation")
+            st.markdown("""
+            - **Whisper ASR Transcription:** High-accuracy word-level audio & video transcription.
+            - **Millisecond Timestamp Detection:** Pinpoint profanity for exact audio muting or bleeping.
+            - **Severity Rating Presets:** Tailor censoring using `Default`, `PG-13`, `R`, or `NC-17` presets.
+            - **Export Formats:** Generate clean audio/video, JSON logs, and clean/raw SRT subtitles.
+            """)
     with col2:
-        st.markdown("""
-        ### 📝 Text NLP
-        - **Document Processing:** Process large text documents or raw input.
-        - **Content Filtering:** Identifies inappropriate language quickly.
-        - **Custom Censor:** Replaces bad words with asterisks or custom tags.
-        - **Analysis Export:** Downloads cleaned text and detailed JSON analysis.
-        """)
-        
-    st.info("👈 Please select a tool from the sidebar navigation menu to get started.")
+        with st.container(border=True):
+            st.markdown("### 📝 Text NLP Moderation")
+            st.markdown("""
+            - **Document & Text Parsing:** Instant profanity analysis for text documents or raw input.
+            - **Category-Aware Profiling:** Classifies flagged tokens into `MILD`, `MODERATE`, `STRONG`, and `VERY_SEVERE`.
+            - **Custom Censor Styles:** Mask bad words with asterisks (`****`), initial-letter tags (`F***`), or custom strings.
+            - **NLP Token Tables:** Full word-token breakdowns with POS tagging and detection sources.
+            """)
+            
+    st.info("👈 Use the sidebar navigation menu to choose a moderation tool.")
 
 
 def render_metric_grid(stats: Dict[str, Any], mapping: List[tuple[str, str]]) -> None:
     cols = st.columns(len(mapping))
     for col, (label, key) in zip(cols, mapping):
         with col:
-            st.markdown(f"<div class='metric-strip'><div class='subtle'>{html.escape(label)}</div><h3>{stats.get(key, 0)}</h3></div>", unsafe_allow_html=True)
+            st.markdown(
+                f"""
+                <div class='metric-card'>
+                    <div class='metric-label'>{html.escape(label)}</div>
+                    <div class='metric-value'>{stats.get(key, 0)}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
 
 def render_media_result(result: Dict[str, Any]) -> None:
     if not result:
         return
-    st.subheader("Media Results")
+    st.markdown("<div class='section-header'>📊 Processing Summary</div>", unsafe_allow_html=True)
     render_metric_grid(
         result.get("summary", {}),
         [
             ("Words", "word_count"),
-            ("Profanity", "profane_word_count"),
-            ("Flagged", "flagged_count"),
+            ("Profanity Hits", "profane_word_count"),
+            ("Flagged Segments", "flagged_count"),
         ],
     )
+    st.markdown("<br>", unsafe_allow_html=True)
     st.markdown(result.get("summary_html", ""), unsafe_allow_html=True)
 
+    st.markdown("<div class='section-header'>📥 Export Files</div>", unsafe_allow_html=True)
     downloads = st.columns(3)
     with downloads[0]:
         download_path(result.get("censored_path", ""), "Download Censored Media")
@@ -175,6 +312,7 @@ def render_media_result(result: Dict[str, Any]) -> None:
             for name, path in result["transcript_paths"].items():
                 download_path(path, f"Download {name.replace('_', ' ').title()}")
 
+    st.markdown("<div class='section-header'>📋 Word Log</div>", unsafe_allow_html=True)
     flagged = [row for row in result.get("log", []) if row.get("is_profane")]
     table_rows = flagged or result.get("log", [])[:250]
     if table_rows:
@@ -186,12 +324,12 @@ def render_media_result(result: Dict[str, Any]) -> None:
 
 
 def render_media_tab() -> None:
-    st.subheader("Media Moderation")
+    st.markdown("<div class='section-header'>🎥 Media Moderation Pipeline</div>", unsafe_allow_html=True)
     input_col, options_col = st.columns([1.0, 1.0], gap="large")
 
     with input_col:
         with st.container(border=True):
-            st.markdown("### Upload Media")
+            st.markdown("### 📤 Upload Media")
             uploaded_media = st.file_uploader("Input Media File", type=[ext.strip(".") for ext in workflows.MEDIA_EXTENSIONS], key="media_upload", label_visibility="collapsed")
             if uploaded_media:
                 suffix = Path(uploaded_media.name).suffix.lower()
@@ -205,21 +343,16 @@ def render_media_tab() -> None:
 
     with options_col:
         with st.container(border=True):
-            st.markdown("### Configuration")
+            st.markdown("### ⚙️ Moderation Settings")
             media_rating_preset = st.selectbox(
-                "Profanity Severity Preset",
+                "Profanity Severity Rating Preset",
                 options=workflows.RATING_PRESETS,
                 index=0,
                 help="Default (strict censor), PG-13 (allows mild oaths), R (allows mild & moderate swearing), NC-17 (allows all except severe slurs).",
             )
             asr_label = st.selectbox("ASR Model (Whisper)", list(workflows.ASR_MODELS.keys()), index=1, help="Whisper model size: larger models offer higher transcription accuracy.")
             
-            c1, c2 = st.columns(2)
-            with c1:
-                mode = st.radio("Censor Mode", ["sound", "silence"], index=0, horizontal=True)
-            with c2:
-                use_vad = st.checkbox("VAD Speech Filtering", value=True, help="Filter out non-speech segments using Silero VAD before transcription.")
-            
+            mode = st.radio("Censor Mode", ["sound", "silence"], index=0, horizontal=True)
             sound_map = {"Sine wave": "B", "Quack": "Q", "Dolphin": "D", "Triggered": "T", "Custom": "C"}
             sound_label = st.selectbox("Sound Choice", list(sound_map.keys()), disabled=mode != "sound")
             
@@ -229,19 +362,10 @@ def render_media_tab() -> None:
                 if uploaded_custom_sound:
                     custom_sound_path = workflows.save_uploaded_file(uploaded_custom_sound, "profanity_cleaner_custom")
                     
-            censor_volume = st.slider("Censor Sound Volume (dB)", min_value=-30.0, max_value=30.0, value=0.0, step=1.0, disabled=mode != "sound", help="Adjust the volume of the censor sound relative to the original audio.")
+            censor_volume = st.slider("Censor Sound Volume (dB)", min_value=-30.0, max_value=30.0, value=0.0, step=1.0, disabled=mode != "sound", help="Adjust volume of the censor tone relative to original audio.")
 
         with st.container(border=True):
-            st.markdown("### Toxicity Moderation (ML)")
-            t_col1, t_col2 = st.columns(2)
-            with t_col1:
-                analyze_toxicity = st.checkbox("Analyze Media Toxicity", value=False)
-            with t_col2:
-                censor_toxic = st.checkbox("Censor Toxic Segments", value=False, disabled=not analyze_toxicity)
-            media_toxicity_threshold = st.slider("Media Toxicity Threshold", 0.0, 1.0, workflows.DEFAULT_TOXICITY_THRESHOLD, 0.01, disabled=not analyze_toxicity)
-
-        with st.container(border=True):
-            st.markdown("### Transcript Output")
+            st.markdown("### 📄 Transcript Export Options")
             out_cols = st.columns(5)
             with out_cols[0]:
                 export_raw_txt = st.checkbox("Raw .txt", value=False)
@@ -255,14 +379,14 @@ def render_media_tab() -> None:
                 export_json = st.checkbox("Log .json", value=True)
 
         with st.container(border=True):
-            st.markdown("### Filter Lists")
+            st.markdown("### 🔍 Custom Word Overrides")
             words_a, words_b = st.columns(2)
             with words_a:
-                whitelist = st.text_area("Media Whitelist", placeholder="hell damn", height=86)
+                whitelist = st.text_area("Media Whitelist", placeholder="words to allow", height=86)
             with words_b:
-                blacklist = st.text_area("Media Blacklist", placeholder="custom words", height=86)
+                blacklist = st.text_area("Media Blacklist", placeholder="words to force-censor", height=86)
 
-        process = st.button("Start Media Processing", type="primary", use_container_width=True, disabled=uploaded_media is None)
+        process = st.button("▶ Start Media Processing", type="primary", use_container_width=True, disabled=uploaded_media is None)
 
     if process and uploaded_media:
         progress_slot = st.progress(0)
@@ -274,13 +398,9 @@ def render_media_tab() -> None:
                 "rating_preset": media_rating_preset,
                 "asr_model": workflows.ASR_MODELS[asr_label],
                 "mode": mode,
-                "use_vad": use_vad,
                 "sound": sound_map[sound_label],
                 "custom_sound_path": custom_sound_path,
                 "censor_volume": censor_volume,
-                "censor_toxic": censor_toxic,
-                "analyze_toxicity": analyze_toxicity,
-                "toxicity_threshold": media_toxicity_threshold,
                 "export_raw_txt": export_raw_txt,
                 "export_clean_txt": export_clean_txt,
                 "export_raw_srt": export_raw_srt,
@@ -303,7 +423,7 @@ def render_media_tab() -> None:
 
 def text_options_panel() -> Dict[str, Any]:
     with st.container(border=True):
-        st.markdown("### Severity Rating Preset")
+        st.markdown("### ⚙️ Rating & Censor Rules")
         text_rating_preset = st.selectbox(
             "Profanity Severity Preset",
             options=workflows.RATING_PRESETS,
@@ -312,31 +432,32 @@ def text_options_panel() -> Dict[str, Any]:
             help="Default (strict censor), PG-13 (allows mild oaths), R (allows mild & moderate swearing), NC-17 (allows all except severe slurs).",
         )
 
-    with st.container(border=True):
-        st.markdown("### Cleaning Rules & Style")
-        rules_col, style_col, prep_col = st.columns([0.9, 0.85, 1.1])
+        rules_col, style_col = st.columns([1, 1])
         with rules_col:
-            st.markdown("**Rules**")
-            clean_standard = st.checkbox("Lexicon", value=True)
-            clean_obfuscated = st.checkbox("Obfuscated", value=True)
-            clean_toxicity = st.checkbox("Toxicity", value=False)
-            toxicity_threshold = st.slider("Text Toxicity Threshold", 0.0, 1.0, workflows.DEFAULT_TOXICITY_THRESHOLD, 0.01, disabled=not clean_toxicity)
+            st.markdown("**Detection Rules**")
+            clean_standard = st.checkbox("Lexicon Matching", value=True)
+            clean_obfuscated = st.checkbox("Obfuscated / Leet Speak", value=True)
         with style_col:
             st.markdown("**Censor Style**")
             style_label = st.radio("Replacement", ["****", "F***", "Custom"], horizontal=True)
             style = {"****": "A", "F***": "B", "Custom": "D"}[style_label]
-            custom = st.text_input("Custom String", value="####", disabled=style != "D")
-        with prep_col:
-            st.markdown("**NLP Preprocessing**")
+            custom = st.text_input("Custom Replacement String", value="####", disabled=style != "D")
+
+    with st.container(border=True):
+        st.markdown("### 🧹 Preprocessing & Normalization")
+        p1, p2, p3 = st.columns(3)
+        with p1:
             normalize_unicode = st.checkbox("Unicode Cleanup", value=True)
             expand_contractions = st.checkbox("Expand Contractions", value=False)
+        with p2:
             compact_whitespace = st.checkbox("Compact Whitespace", value=False)
             casefold = st.checkbox("Casefold", value=False)
+        with p3:
             remove_urls = st.checkbox("Remove URLs", value=False)
             remove_emails = st.checkbox("Remove Emails", value=False)
 
     with st.container(border=True):
-        st.markdown("### Filter Lists")
+        st.markdown("### 🔍 Custom Word Overrides")
         wl_col, bl_col = st.columns(2)
         with wl_col:
             whitelist = st.text_area("Text Whitelist", placeholder="words to allow", height=82)
@@ -347,8 +468,6 @@ def text_options_panel() -> Dict[str, Any]:
         "rating_preset": text_rating_preset,
         "clean_standard": clean_standard,
         "clean_obfuscated": clean_obfuscated,
-        "clean_toxicity": clean_toxicity,
-        "toxicity_threshold": toxicity_threshold,
         "censor_style": style,
         "custom_replacement": custom,
         "whitelist_text": whitelist,
@@ -367,34 +486,38 @@ def text_options_panel() -> Dict[str, Any]:
 def render_text_result(result: Dict[str, Any]) -> None:
     if not result:
         return
-    st.subheader("Text Results")
+    st.markdown("<div class='section-header'>📊 Analysis & Cleaned Output</div>", unsafe_allow_html=True)
     stats = result.get("stats", {})
     render_metric_grid(
         stats,
         [
-            ("Words", "word_count"),
-            ("Unique", "unique_terms"),
-            ("Profanity", "profane_word_count"),
-            ("Toxic", "toxic_sentence_count"),
+            ("Word Count", "word_count"),
+            ("Unique Terms", "unique_terms"),
+            ("Profanity Hits", "profane_word_count"),
+            ("Sentences", "sentence_count"),
         ],
     )
+    st.markdown("<br>", unsafe_allow_html=True)
 
     result_cols = st.columns([0.7, 0.3])
     with result_cols[0]:
-        st.text_area("Cleaned Text", value=result.get("cleaned_text", ""), height=230)
+        st.text_area("Cleaned Output Text", value=result.get("cleaned_text", ""), height=220)
     with result_cols[1]:
         render_copy_button(result.get("cleaned_text", ""))
-        st.download_button("Download Cleaned Text", result.get("cleaned_text", "").encode("utf-8"), file_name="profanity_cleaned_text.txt", mime="text/plain")
+        st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
+        st.download_button("📥 Download Cleaned Text", result.get("cleaned_text", "").encode("utf-8"), file_name="profanity_cleaned_text.txt", mime="text/plain", use_container_width=True)
         st.download_button(
-            "Download NLP JSON",
+            "📥 Download NLP JSON",
             json.dumps(result, indent=2, ensure_ascii=False).encode("utf-8"),
             file_name="profanity_text_analysis.json",
             mime="application/json",
+            use_container_width=True,
         )
         if result.get("output_path"):
             download_path(result["output_path"], "Download Saved File")
 
-    token_tab, flagged_tab, sent_tab, vocab_tab = st.tabs(["Word Tokens", "Flagged", "Sentences", "Vocabulary"])
+    st.markdown("<div class='section-header'>📋 Data Breakdown</div>", unsafe_allow_html=True)
+    token_tab, flagged_tab, sent_tab, vocab_tab = st.tabs(["Word Tokens", "Flagged Tokens", "Sentences", "Vocabulary Stats"])
     with token_tab:
         token_keys = ["index", "text", "normalized", "lemma", "pos_guess", "severity_category", "token_type", "start", "end", "is_stopword", "detection_source"]
         st.dataframe(compact_rows(result.get("word_tokens", []), token_keys), use_container_width=True, hide_index=True)
@@ -403,26 +526,28 @@ def render_text_result(result: Dict[str, Any]) -> None:
         if flagged:
             st.dataframe(compact_rows(flagged, ["text", "normalized", "lemma", "pos_guess", "severity_category", "is_obfuscated", "is_blacklisted", "detection_source", "replacement"]), use_container_width=True, hide_index=True)
         else:
-            st.info("No flagged tokens.")
+            st.info("No flagged tokens detected.")
     with sent_tab:
-        st.dataframe(compact_rows(result.get("sentences", []), ["index", "text", "word_count", "toxicity_score", "is_toxic", "replacement"]), use_container_width=True, hide_index=True)
+        st.dataframe(compact_rows(result.get("sentences", []), ["index", "text", "word_count", "replacement"]), use_container_width=True, hide_index=True)
     with vocab_tab:
         top_terms = [{"term": term, "count": count} for term, count in stats.get("top_terms", [])]
         pos_counts = [{"pos": pos, "count": count} for pos, count in stats.get("pos_counts", {}).items()]
         left, right = st.columns(2)
         with left:
+            st.markdown("**Top Frequent Terms**")
             st.dataframe(top_terms, use_container_width=True, hide_index=True)
         with right:
+            st.markdown("**POS Tag Distribution**")
             st.dataframe(pos_counts, use_container_width=True, hide_index=True)
 
 
 def render_text_tab() -> None:
-    st.subheader("Text NLP Moderation")
+    st.markdown("<div class='section-header'>📝 Text NLP Moderation Pipeline</div>", unsafe_allow_html=True)
     input_col, options_col = st.columns([1.0, 1.0], gap="large")
     
     with input_col:
         with st.container(border=True):
-            st.markdown("### Input Text")
+            st.markdown("### 📄 Input Text")
             uploaded_text = st.file_uploader("Upload Text File", type=[ext.strip(".") for ext in workflows.TEXT_EXTENSIONS], key="text_upload", label_visibility="collapsed")
             uploaded_path = ""
             loaded_text = ""
@@ -430,12 +555,12 @@ def render_text_tab() -> None:
                 uploaded_path = workflows.save_uploaded_file(uploaded_text, "profanity_cleaner_text")
                 loaded_text = workflows.read_text_file(uploaded_path)
 
-            raw_text = st.text_area("Input/Raw Text", value=loaded_text, height=245, placeholder="Enter text here or load a file above.", label_visibility="collapsed")
+            raw_text = st.text_area("Input/Raw Text", value=loaded_text, height=270, placeholder="Enter text here or load a file above.", label_visibility="collapsed")
     
     with options_col:
         options = text_options_panel()
         can_process = bool(raw_text.strip())
-        process = st.button("Start Text Processing", type="primary", use_container_width=True, disabled=not can_process)
+        process = st.button("▶ Start Text Processing", type="primary", use_container_width=True, disabled=not can_process)
 
     if process and can_process:
         if options["censor_style"] == "D" and not options["custom_replacement"].strip():
@@ -465,10 +590,10 @@ def main() -> None:
     init_state()
     
     with st.sidebar:
-        st.header("Navigation")
-        st.button("Home", use_container_width=True, type="primary" if st.session_state.current_page == "Home" else "secondary", on_click=set_page, args=("Home",))
-        st.button("Media Moderation", use_container_width=True, type="primary" if st.session_state.current_page == "Media Moderation" else "secondary", on_click=set_page, args=("Media Moderation",))
-        st.button("Text NLP", use_container_width=True, type="primary" if st.session_state.current_page == "Text NLP" else "secondary", on_click=set_page, args=("Text NLP",))
+        st.markdown("<h2 style='font-size: 1.25rem; font-weight: 700;'>🧭 Navigation</h2>", unsafe_allow_html=True)
+        st.button("🏠 Home Overview", use_container_width=True, type="primary" if st.session_state.current_page == "Home" else "secondary", on_click=set_page, args=("Home",))
+        st.button("🎥 Media Moderation", use_container_width=True, type="primary" if st.session_state.current_page == "Media Moderation" else "secondary", on_click=set_page, args=("Media Moderation",))
+        st.button("📝 Text NLP Moderation", use_container_width=True, type="primary" if st.session_state.current_page == "Text NLP" else "secondary", on_click=set_page, args=("Text NLP",))
         
     page = st.session_state.current_page
         
