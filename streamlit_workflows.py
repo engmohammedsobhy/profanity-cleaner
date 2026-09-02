@@ -13,6 +13,7 @@ from collections import Counter
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
+import streamlit as st
 
 try:
     import backend
@@ -665,6 +666,13 @@ def _fallback_output_copy(input_path: str) -> str:
     return output_path
 
 
+@st.cache_resource(max_entries=1, show_spinner=False)
+def _cached_load_asr(model_name: str) -> bool:
+    b = require_backend()
+    b.load_ml_resources(lambda msg: None, False, model_name)
+    return True
+
+
 def process_media_file(file_path: str, options: Dict[str, Any], progress_callback: Any = None, progress_value_callback: Any = None) -> Dict[str, Any]:
     b = require_backend()
     if not os.path.exists(file_path):
@@ -683,7 +691,8 @@ def process_media_file(file_path: str, options: Dict[str, Any], progress_callbac
     emit(progress_callback, f"Loaded {len(b.GLOBAL_BLACKLIST_WORDS)} blacklist word(s).")
 
     asr_model = options.get("asr_model", "base.en")
-    b.load_ml_resources(progress_callback, False, asr_model)
+    emit(progress_callback, f"Initializing ASR model ({asr_model})...")
+    _cached_load_asr(asr_model)
 
     emit(progress_value_callback, 5)
     pre_converted = b.pre_convert_to_wav(file_path, progress_callback)

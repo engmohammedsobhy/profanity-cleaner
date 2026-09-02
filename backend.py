@@ -362,19 +362,7 @@ def load_ml_resources(progress_callback: Callable, load_toxicity: bool, asr_mode
                     sys.stdout = original_stdout
                     raise Exception(f"Failed to load ASR Model: {e}. Check Whisper/PyTorch installation.")
 
-        if load_toxicity and TOXICITY_MODEL is None:
-            try:
-                progress_callback.emit(f"Loading/Downloading ML Toxicity Model (unitary/toxic-bert) on {TOXICITY_DEVICE}, for first time using a model, it should be installed")
-                model_name = "unitary/toxic-bert"
-                TOXICITY_TOKENIZER = AutoTokenizer.from_pretrained(model_name)
-                TOXICITY_MODEL = AutoModelForSequenceClassification.from_pretrained(model_name)
-                TOXICITY_MODEL.to(TOXICITY_DEVICE)
-                progress_callback.emit("ML Toxicity Model loaded successfully, we're back")
-            except Exception as e:
-                sys.stdout = original_stdout
-                raise Exception(f"Failed to load REAL ML Toxicity Model. Check 'torch'/'transformers' installation. Error: {e}")
-        elif not load_toxicity and TOXICITY_MODEL is None:
-            pass
+
 
         if VAD_MODEL is None and asr_model_name:
             try:
