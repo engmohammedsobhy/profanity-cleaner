@@ -567,149 +567,139 @@ def render_media_tab() -> None:
             st.info("💡 Upload an audio or video file in Step 1 to configure censoring options and word rules.")
             return
 
-        # STEP 2: Core Rules & Moderation
-        with st.container(border=True):
-            st.markdown(
-                """
-                <div class='step-header'>
-                    <span class='step-number'>2</span> Moderation & Word Rules
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            mod_c1, mod_c2 = st.columns(2)
-            with mod_c1:
-                media_rating_preset = st.selectbox(
-                    "Severity Rating Preset",
-                    options=workflows.RATING_PRESETS,
-                    index=0,
-                    help="Default (strict censor), PG-13 (allows mild oaths), R (allows mild & moderate swearing), NC-17 (allows all except severe slurs).",
-                )
-            with mod_c2:
-                asr_label = st.selectbox(
-                    "ASR Model (Whisper)",
-                    list(workflows.ASR_MODELS.keys()),
+        # Tabbed Option Panel for clean feature navigation
+        tab_mod, tab_audio, tab_export = st.tabs([
+            "🛡️ Moderation & Rules",
+            "🔊 Audio & Censoring",
+            "📄 Exports & Output",
+        ])
+
+        with tab_mod:
+            with st.container(border=True):
+                st.markdown("#### Moderation Presets & Models")
+                mod_c1, mod_c2 = st.columns(2)
+                with mod_c1:
+                    media_rating_preset = st.selectbox(
+                        "Severity Rating Preset",
+                        options=workflows.RATING_PRESETS,
+                        index=0,
+                        help="Default (strict censor), PG-13 (allows mild oaths), R (allows mild & moderate swearing), NC-17 (allows all except severe slurs).",
+                    )
+                with mod_c2:
+                    asr_label = st.selectbox(
+                        "ASR Model (Whisper)",
+                        list(workflows.ASR_MODELS.keys()),
+                        index=1,
+                        help="Whisper speech recognition model size. Larger models provide higher transcription accuracy.",
+                    )
+
+                st.markdown("#### Custom Word Rules")
+                wl_col, bl_col = st.columns(2)
+                with wl_col:
+                    selected_whitelist = st.text_area(
+                        "Whitelist",
+                        placeholder="Allowed words (e.g. god, damn)",
+                        height=100,
+                        key="media_whitelist",
+                        help="Words listed here will NEVER be censored, overriding standard profanity filters.",
+                    )
+                with bl_col:
+                    selected_blacklist = st.text_area(
+                        "Blacklist",
+                        placeholder="Forced censor words (e.g. idiot)",
+                        height=100,
+                        key="media_blacklist",
+                        help="Words listed here will ALWAYS be censored, even if not in standard profanity dictionary.",
+                    )
+
+        with tab_audio:
+            with st.container(border=True):
+                st.markdown("#### Censoring Mode & Audio Effects")
+                censor_style_choice = st.radio(
+                    "Censoring Style",
+                    options=["Silence", "One sound", "Multiple sounds"],
                     index=1,
-                    help="Whisper speech recognition model size. Larger models provide higher transcription accuracy.",
+                    horizontal=True,
+                    help="Choose whether to mute flagged words silently, play a single censor bleep, or layer multiple sounds.",
                 )
 
-            st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
-            wl_col, bl_col = st.columns(2)
-            with wl_col:
-                selected_whitelist = st.text_area(
-                    "Whitelist",
-                    placeholder="Allowed words (e.g. god, damn)",
-                    height=90,
-                    key="media_whitelist",
-                    help="Words listed here will NEVER be censored, overriding standard profanity filters.",
-                )
-            with bl_col:
-                selected_blacklist = st.text_area(
-                    "Blacklist",
-                    placeholder="Forced censor words (e.g. idiot)",
-                    height=90,
-                    key="media_blacklist",
-                    help="Words listed here will ALWAYS be censored, even if not in standard profanity dictionary.",
-                )
+                mode_map = {"Silence": "silence", "One sound": "sound", "Multiple sounds": "multiple_sounds"}
+                mode = mode_map[censor_style_choice]
+                sound_map = {"Sine wave": "B", "Quack": "Q", "Dolphin": "D", "Triggered": "T", "Custom": "C"}
 
-        # STEP 3: Censoring & Audio Settings
-        with st.container(border=True):
-            st.markdown(
-                """
-                <div class='step-header'>
-                    <span class='step-number'>3</span> Audio Censoring & Output
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            censor_style_choice = st.radio(
-                "Censoring Style",
-                options=["Silence", "One sound", "Multiple sounds"],
-                index=1,
-                horizontal=True,
-                help="Choose whether to mute flagged words silently, play a single censor bleep, or layer multiple sounds.",
-            )
+                sound_choice_keys = []
+                custom_sound_path = ""
+                custom_sound_paths = []
 
-            mode_map = {"Silence": "silence", "One sound": "sound", "Multiple sounds": "multiple_sounds"}
-            mode = mode_map[censor_style_choice]
-            sound_map = {"Sine wave": "B", "Quack": "Q", "Dolphin": "D", "Triggered": "T", "Custom": "C"}
+                if mode == "sound":
+                    selected_sound = st.selectbox("Sound Choice", list(sound_map.keys()), help="Select the audio bleep/effect to play during profane words.")
+                    sound_choice_keys = [sound_map[selected_sound]]
+                    if selected_sound == "Custom":
+                        uploaded_custom_sound = st.file_uploader("Upload Custom Audio (WAV/MP3)", type=["wav", "mp3", "ogg"], accept_multiple_files=True, key="custom_sound")
+                        if uploaded_custom_sound:
+                            custom_sound_paths = workflows.save_uploaded_files(uploaded_custom_sound, "profanity_cleaner_custom")
+                            custom_sound_path = custom_sound_paths[0] if custom_sound_paths else ""
 
-            sound_choice_keys = []
-            custom_sound_path = ""
-            custom_sound_paths = []
+                elif mode == "multiple_sounds":
+                    selected_sounds = st.multiselect(
+                        "Sound Choices",
+                        options=list(sound_map.keys()),
+                        default=["Sine wave", "Quack", "Dolphin"],
+                        help="Selected sounds will be overlaid together at each profane word timestamp.",
+                    )
+                    sound_choice_keys = [sound_map[s] for s in selected_sounds]
+                    if "Custom" in selected_sounds:
+                        uploaded_custom_sounds = st.file_uploader("Upload Custom Audio Files (WAV/MP3)", type=["wav", "mp3", "ogg"], accept_multiple_files=True, key="custom_sound_multi")
+                        if uploaded_custom_sounds:
+                            custom_sound_paths = workflows.save_uploaded_files(uploaded_custom_sounds, "profanity_cleaner_custom")
+                            custom_sound_path = custom_sound_paths[0] if custom_sound_paths else ""
 
-            if mode == "sound":
-                selected_sound = st.selectbox("Sound Choice", list(sound_map.keys()), help="Select the audio bleep/effect to play during profane words.")
-                sound_choice_keys = [sound_map[selected_sound]]
-                if selected_sound == "Custom":
-                    uploaded_custom_sound = st.file_uploader("Upload Custom Audio (WAV/MP3)", type=["wav", "mp3", "ogg"], accept_multiple_files=True, key="custom_sound")
-                    if uploaded_custom_sound:
-                        custom_sound_paths = workflows.save_uploaded_files(uploaded_custom_sound, "profanity_cleaner_custom")
-                        custom_sound_path = custom_sound_paths[0] if custom_sound_paths else ""
+                st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
+                with st.expander("⚙️ Advanced Audio & Timing Controls", expanded=False):
+                    overlap_censor = False
+                    marked_audio_volume = 100.0
 
-            elif mode == "multiple_sounds":
-                selected_sounds = st.multiselect(
-                    "Sound Choices",
-                    options=list(sound_map.keys()),
-                    default=["Sine wave", "Quack", "Dolphin"],
-                    help="Selected sounds will be overlaid together at each profane word timestamp.",
-                )
-                sound_choice_keys = [sound_map[s] for s in selected_sounds]
-                if "Custom" in selected_sounds:
-                    uploaded_custom_sounds = st.file_uploader("Upload Custom Audio Files (WAV/MP3)", type=["wav", "mp3", "ogg"], accept_multiple_files=True, key="custom_sound_multi")
-                    if uploaded_custom_sounds:
-                        custom_sound_paths = workflows.save_uploaded_files(uploaded_custom_sounds, "profanity_cleaner_custom")
-                        custom_sound_path = custom_sound_paths[0] if custom_sound_paths else ""
+                    if mode in ["sound", "multiple_sounds"]:
+                        c1, c2 = st.columns(2)
+                        with c1:
+                            overlap_censor = st.checkbox("Overlap censor audio", value=False, help="Keep original audio audible underneath the censor sound instead of completely muting it.")
+                        with c2:
+                            marked_audio_volume = st.slider(
+                                "Original Audio Volume (%)",
+                                min_value=0,
+                                max_value=100,
+                                value=100,
+                                step=1,
+                                disabled=not overlap_censor,
+                                help="Original audio volume level (0-100%) when censor sound plays in overlap mode.",
+                            )
 
-            # Collapsible Accordion for Advanced Audio & Timing Controls
-            with st.expander("⚙️ Advanced Audio & Timing Controls", expanded=False):
-                overlap_censor = False
-                marked_audio_volume = 100.0
+                        censor_volume = st.slider("Censor Sound Volume (dB)", min_value=-30.0, max_value=30.0, value=0.0, step=1.0, help="Adjust gain boost or attenuation for censor audio.")
+                        loop_censor_sound = st.checkbox("Loop censor sound", value=True, help="Repeats short censor sound continuously until the profane word finishes speaking.")
+                    else:
+                        censor_volume = 0.0
+                        loop_censor_sound = True
 
-                if mode in ["sound", "multiple_sounds"]:
-                    c1, c2 = st.columns(2)
-                    with c1:
-                        overlap_censor = st.checkbox("Overlap censor audio", value=False, help="Keep original audio audible underneath the censor sound instead of completely muting it.")
-                    with c2:
-                        marked_audio_volume = st.slider(
-                            "Original Audio Volume (%)",
-                            min_value=0,
-                            max_value=100,
-                            value=100,
-                            step=1,
-                            disabled=not overlap_censor,
-                            help="Original audio volume level (0-100%) when censor sound plays in overlap mode.",
-                        )
+                    use_padding = st.checkbox("Time padding", value=True, help="Extend censoring timeframe slightly before and after each flagged word to prevent leaking fast speech syllables.")
+                    padding_before_sec = 0.05
+                    padding_after_sec = 0.05
+                    if use_padding:
+                        pad_c1, pad_c2 = st.columns(2)
+                        with pad_c1:
+                            padding_before_sec = st.number_input("Padding Before (sec)", min_value=0.00, max_value=2.00, value=0.05, step=0.01, format="%.2f", help="Time added before word start timestamp.")
+                        with pad_c2:
+                            padding_after_sec = st.number_input("Padding After (sec)", min_value=0.00, max_value=2.00, value=0.05, step=0.01, format="%.2f", help="Time added after word end timestamp.")
 
-                    censor_volume = st.slider("Censor Sound Volume (dB)", min_value=-30.0, max_value=30.0, value=0.0, step=1.0, help="Adjust gain boost or attenuation for censor audio.")
-                    loop_censor_sound = st.checkbox("Loop censor sound", value=True, help="Repeats short censor sound continuously until the profane word finishes speaking.")
-                else:
-                    censor_volume = 0.0
-                    loop_censor_sound = True
-
-                use_padding = st.checkbox("Time padding", value=True, help="Extend censoring timeframe slightly before and after each flagged word to prevent leaking fast speech syllables.")
-                padding_before_sec = 0.05
-                padding_after_sec = 0.05
-                if use_padding:
-                    pad_c1, pad_c2 = st.columns(2)
-                    with pad_c1:
-                        padding_before_sec = st.number_input("Padding Before (sec)", min_value=0.00, max_value=2.00, value=0.05, step=0.01, format="%.2f", help="Time added before word start timestamp.")
-                    with pad_c2:
-                        padding_after_sec = st.number_input("Padding After (sec)", min_value=0.00, max_value=2.00, value=0.05, step=0.01, format="%.2f", help="Time added after word end timestamp.")
-
-            # Export Preferences Panel inside Step 3
-            st.markdown("<div class='section-label' style='margin-top:10px;'>Transcript & Log Exports</div>", unsafe_allow_html=True)
-            out_cols = st.columns(5)
-            with out_cols[0]:
-                export_raw_txt = st.checkbox("Raw .txt", value=False, help="Export un-censored transcription text file.")
-            with out_cols[1]:
-                export_clean_txt = st.checkbox("Clean .txt", value=False, help="Export profanity-masked transcription text file.")
-            with out_cols[2]:
-                export_raw_srt = st.checkbox("Raw .srt", value=False, help="Export un-censored subtitle file.")
-            with out_cols[3]:
-                export_clean_srt = st.checkbox("Clean .srt", value=False, help="Export profanity-masked subtitle file.")
-            with out_cols[4]:
-                export_json = st.checkbox("Log .json", value=True, help="Export detailed word-level timestamp log in JSON format.")
+        with tab_export:
+            with st.container(border=True):
+                st.markdown("#### Transcript & Timestamp Exports")
+                st.markdown("<p style='font-size:0.85rem; color:var(--text-secondary); margin-bottom:12px;'>Select file types to generate alongside your censored media file:</p>", unsafe_allow_html=True)
+                
+                export_raw_txt = st.checkbox("Raw .txt (Original transcription)", value=False)
+                export_clean_txt = st.checkbox("Clean .txt (Profanity-masked text)", value=False)
+                export_raw_srt = st.checkbox("Raw .srt (Original subtitles)", value=False)
+                export_clean_srt = st.checkbox("Clean .srt (Profanity-masked subtitles)", value=False)
+                export_json = st.checkbox("Log .json (Word-level timestamps)", value=True)
 
     if process and uploaded_media:
         progress_slot = st.progress(0)
