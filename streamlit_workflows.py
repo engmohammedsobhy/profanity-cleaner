@@ -734,6 +734,10 @@ def process_media_file(file_path: str, options: Dict[str, Any], progress_callbac
         options.get("censor_volume", 0.0),
         progress_callback,
         progress_value_callback,
+        overlap_censor=bool(options.get("overlap_censor", False)),
+        marked_audio_volume=float(options.get("marked_audio_volume", 100.0)),
+        padding_before_ms=int(options.get("padding_before_ms", 50)),
+        padding_after_ms=int(options.get("padding_after_ms", 50)),
     )
     if not os.path.exists(censor_path):
         censor_path = _fallback_output_copy(file_path)

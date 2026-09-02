@@ -5,6 +5,7 @@ import sys
 import os
 import time
 import random
+import math
 import json
 import re
 import platform
@@ -605,16 +606,31 @@ def load_censor_sound(sound_choice: str, duration_ms: int, sample_rate: int, cha
 
     return AudioSegment.silent(duration=duration_ms)
 
-def censor_media(input_path: str, output_path_base: str, log: List[Dict[str, Any]], mode: str, censor_toxic: bool, sound_choice: str, custom_sound_path: str, volume_change: float, progress_callback: Callable, progress_value_callback: Callable) -> str:
+def censor_media(
+    input_path: str,
+    output_path_base: str,
+    log: List[Dict[str, Any]],
+    mode: str,
+    censor_toxic: bool,
+    sound_choice: Any,
+    custom_sound_path: str,
+    volume_change: float,
+    progress_callback: Callable,
+    progress_value_callback: Callable,
+    overlap_censor: bool = False,
+    marked_audio_volume: float = 100.0,
+    padding_before_ms: int = 50,
+    padding_after_ms: int = 50,
+) -> str:
     if 'pydub' not in sys.modules:
         raise Exception("pydub (requires FFmpeg) is not installed. Media censoring cannot proceed.")
         
-    progress_callback.emit(f"Starting Media Censoring: Mode='{mode}', Censor Toxic='{censor_toxic}'...")
+    progress_callback.emit(f"Starting Media Censoring: Mode='{mode}', Overlap='{overlap_censor}', Marked Volume='{marked_audio_volume}%', Padding=({padding_before_ms}ms before, {padding_after_ms}ms after)...")
 
     def needs_censoring(entry):
-        if entry['is_profane']:
+        if entry.get('is_profane'):
             return True
-        if censor_toxic and entry['is_toxic']:
+        if censor_toxic and entry.get('is_toxic'):
             return True
         return False
 
@@ -636,24 +652,11 @@ def censor_media(input_path: str, output_path_base: str, log: List[Dict[str, Any
         output_format = ext[1:].lower()
         output_file_path = f"{base_name}{censor_label}{ext}"
         progress_callback.emit(f"Input is video ({output_format}). Setting up two-input FFmpeg muxing (Censored Audio + Original Video).")
-        
         export_parameters.extend(["-i", input_path])
-        
-        # NOTE: This part assumes the AudioSegment export will create a temporary audio file,
-        # which will be passed as the second input (index 1) to FFmpeg in the pydub export.
-        # This requires pydub's underlying logic to handle the multi-input/muxing properly.
-        # This is a complex step usually handled better by native FFmpeg calls, but we rely on pydub for simplicity here.
-        # For pydub's .export to handle multi-input, it needs to be configured correctly.
-        # The common pydub workaround is to export the audio first, and then run a separate FFmpeg call for muxing.
-        # To keep it within the single .export call (as the code seems to intend), we stick to the parameters below, 
-        # but acknowledge the pydub dependency complexity.
-        
         export_parameters.extend(["-map", "0:a", "-map", "1:v", "-c:v", "copy"])
 
-    
     if not segments_to_censor:
         progress_callback.emit("No segments found requiring censorship. Finished.")
-        
         if is_video_input:
             try:
                 import shutil
@@ -668,43 +671,60 @@ def censor_media(input_path: str, output_path_base: str, log: List[Dict[str, Any
         raise Exception(f"Could not load media file with pydub. Ensure FFmpeg is on PATH. Error: {e}")
 
     bleeped_media = media[:]
-
     total_segments = len(segments_to_censor)
 
     for i, entry in enumerate(segments_to_censor):
         start = entry['start_ms']
         end = entry['end_ms']
 
-        BUFFER_MS = 50
-        actual_start = max(0, start - BUFFER_MS)
-        actual_end = min(len(media), end + BUFFER_MS)
+        actual_start = max(0, start - padding_before_ms)
+        actual_end = min(len(media), end + padding_after_ms)
         actual_duration = actual_end - actual_start
 
         if actual_duration > 0:
+            if mode in ['sound', 'multiple_sounds']:
+                if mode == 'multiple_sounds' and isinstance(sound_choice, list) and len(sound_choice) > 0:
+                    chosen_sound = random.choice(sound_choice)
+                elif isinstance(sound_choice, list) and len(sound_choice) > 0:
+                    chosen_sound = sound_choice[0]
+                else:
+                    chosen_sound = str(sound_choice) if sound_choice else 'B'
 
-            if mode == 'sound':
                 replacement_segment = load_censor_sound(
-                    sound_choice, actual_duration, media.frame_rate, media.channels, custom_sound_path, volume_change, progress_callback
+                    chosen_sound, actual_duration, media.frame_rate, media.channels, custom_sound_path, volume_change, progress_callback
                 )
+
+                if overlap_censor:
+                    orig_segment = media[actual_start:actual_end]
+                    if marked_audio_volume <= 0:
+                        orig_segment = AudioSegment.silent(duration=actual_duration, frame_rate=media.frame_rate, channels=media.channels)
+                    elif marked_audio_volume < 100:
+                        db_reduction = 20.0 * math.log10(marked_audio_volume / 100.0)
+                        orig_segment = orig_segment + db_reduction
+
+                    censored_segment = orig_segment.overlay(replacement_segment)
+                else:
+                    censored_segment = replacement_segment
+
             elif mode == 'silence':
-                replacement_segment = AudioSegment.silent(duration=actual_duration, frame_rate=media.frame_rate)
+                censored_segment = AudioSegment.silent(duration=actual_duration, frame_rate=media.frame_rate, channels=media.channels)
             else:
                 continue
 
             bleeped_media = (
                 bleeped_media[:actual_start] +
-                replacement_segment +
+                censored_segment +
                 bleeped_media[actual_end:]
             )
 
-            flag_type = "Profanity" if entry['is_profane'] else "Toxicity"
+            flag_type = "Profanity" if entry.get('is_profane') else "Toxicity"
             progress_callback.emit(f"Applied '{mode}' to {flag_type} at {actual_start/1000:.2f}s")
 
         progress_value_callback.emit(int(50 + (i / total_segments) * 50))
 
     bleeped_media.export(output_file_path, format=output_format, parameters=export_parameters)
     
-    progress_callback.emit(f"✅ Censored media saved successfully to: {output_file_path}")
+    progress_callback.emit(f"Censored media saved successfully to: {output_file_path}")
     progress_value_callback.emit(100)
     return output_file_path
 

@@ -12,7 +12,7 @@ import streamlit.components.v1 as components
 
 import streamlit_workflows as workflows
 
-st.set_page_config(page_title="Purity", layout="wide")
+st.set_page_config(page_title="profanity detector", layout="wide")
 
 st.markdown(
     """
@@ -250,7 +250,7 @@ def compact_rows(rows: List[Dict[str, Any]], keys: List[str]) -> List[Dict[str, 
 def render_header() -> None:
     top_left, top_right = st.columns([0.8, 0.2], vertical_alignment="center")
     with top_left:
-        st.markdown("<div class='apple-title'>Purity</div>", unsafe_allow_html=True)
+        st.markdown("<div class='apple-title'>profanity detector</div>", unsafe_allow_html=True)
         st.markdown("<div class='apple-subtitle'>Intelligent media moderation and text profanity analysis.</div>", unsafe_allow_html=True)
     with top_right:
         render_mascot("startup")
@@ -310,10 +310,19 @@ def render_media_result(result: Dict[str, Any]) -> None:
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown(result.get("summary_html", ""), unsafe_allow_html=True)
 
+    censored_path = result.get("censored_path", "")
+    if censored_path and os.path.exists(censored_path):
+        st.markdown("<div class='section-label'>Censored Media Preview</div>", unsafe_allow_html=True)
+        ext = Path(censored_path).suffix.lower()
+        if ext in [".mp4", ".mkv", ".avi", ".mov", ".webm"]:
+            st.video(censored_path)
+        else:
+            st.audio(censored_path)
+
     st.markdown("<div class='section-label'>Downloads</div>", unsafe_allow_html=True)
     downloads = st.columns(3)
     with downloads[0]:
-        download_path(result.get("censored_path", ""), "Download Censored Media")
+        download_path(censored_path, "Download Censored Media")
     with downloads[1]:
         download_path(result.get("log_path", ""), "Download JSON Log")
     with downloads[2]:
@@ -369,17 +378,82 @@ def render_media_tab() -> None:
             )
             asr_label = st.selectbox("ASR Model (Whisper)", list(workflows.ASR_MODELS.keys()), index=1, help="Whisper model size: larger models offer higher transcription accuracy.")
             
-            mode = st.radio("Censor Mode", ["sound", "silence"], index=0, horizontal=True)
-            sound_map = {"Sine wave": "B", "Quack": "Q", "Dolphin": "D", "Triggered": "T", "Custom": "C"}
-            sound_label = st.selectbox("Sound Choice", list(sound_map.keys()), disabled=mode != "sound")
-            
+            censor_style_choice = st.radio(
+                "Censoring style",
+                options=["Silence", "One sound", "Multiple sounds"],
+                index=0,
+                horizontal=True,
+            )
+
+            mode_map = {
+                "Silence": "silence",
+                "One sound": "sound",
+                "Multiple sounds": "multiple_sounds",
+            }
+            mode = mode_map[censor_style_choice]
+
+            sound_map = {
+                "Sine wave": "B",
+                "Quack": "Q",
+                "Dolphin": "D",
+                "Triggered": "T",
+                "Custom": "C",
+            }
+
+            sound_choice_keys = []
             custom_sound_path = ""
-            if sound_label == "Custom" and mode == "sound":
-                uploaded_custom_sound = st.file_uploader("Upload Custom Audio (WAV/MP3)", type=["wav", "mp3", "ogg"], key="custom_sound")
-                if uploaded_custom_sound:
-                    custom_sound_path = workflows.save_uploaded_file(uploaded_custom_sound, "profanity_cleaner_custom")
-                    
-            censor_volume = st.slider("Censor Sound Volume (dB)", min_value=-30.0, max_value=30.0, value=0.0, step=1.0, disabled=mode != "sound")
+
+            if mode == "One sound":
+                selected_sound = st.selectbox("Sound Choice", list(sound_map.keys()))
+                sound_choice_keys = [sound_map[selected_sound]]
+                if selected_sound == "Custom":
+                    uploaded_custom_sound = st.file_uploader("Upload Custom Audio (WAV/MP3)", type=["wav", "mp3", "ogg"], key="custom_sound")
+                    if uploaded_custom_sound:
+                        custom_sound_path = workflows.save_uploaded_file(uploaded_custom_sound, "profanity_cleaner_custom")
+
+            elif mode == "Multiple sounds":
+                selected_sounds = st.multiselect(
+                    "Sound Choices (Randomly selected per profane word)",
+                    options=list(sound_map.keys()),
+                    default=["Sine wave", "Quack", "Dolphin"],
+                )
+                sound_choice_keys = [sound_map[s] for s in selected_sounds]
+                if "Custom" in selected_sounds:
+                    uploaded_custom_sound = st.file_uploader("Upload Custom Audio (WAV/MP3)", type=["wav", "mp3", "ogg"], key="custom_sound_multi")
+                    if uploaded_custom_sound:
+                        custom_sound_path = workflows.save_uploaded_file(uploaded_custom_sound, "profanity_cleaner_custom")
+
+            overlap_censor = False
+            marked_audio_volume = 100.0
+
+            if mode in ["One sound", "Multiple sounds"]:
+                c1, c2 = st.columns(2)
+                with c1:
+                    overlap_censor = st.checkbox("Overlap censor audio", value=False, help="Make original audio heard together with the censor sound.")
+                with c2:
+                    marked_audio_volume = st.slider(
+                        "Marked audio volume",
+                        min_value=0,
+                        max_value=100,
+                        value=100,
+                        step=1,
+                        disabled=not overlap_censor,
+                        help="Original audio volume level (0-100%) when censor sound plays.",
+                    )
+
+                censor_volume = st.slider("Censor Sound Volume (dB)", min_value=-30.0, max_value=30.0, value=0.0, step=1.0)
+            else:
+                censor_volume = 0.0
+
+            use_padding = st.checkbox("Time padding", value=True, help="Pad censoring timeframe before and after each flagged word.")
+            padding_before_sec = 0.05
+            padding_after_sec = 0.05
+            if use_padding:
+                pad_c1, pad_c2 = st.columns(2)
+                with pad_c1:
+                    padding_before_sec = st.number_input("Before (sec)", min_value=0.00, max_value=2.00, value=0.05, step=0.01, format="%.2f")
+                with pad_c2:
+                    padding_after_sec = st.number_input("After (sec)", min_value=0.00, max_value=2.00, value=0.05, step=0.01, format="%.2f")
 
         with st.container(border=True):
             st.markdown("#### Transcript Exports")
@@ -407,9 +481,13 @@ def render_media_tab() -> None:
                 "rating_preset": media_rating_preset,
                 "asr_model": workflows.ASR_MODELS[asr_label],
                 "mode": mode,
-                "sound": sound_map[sound_label],
+                "sound": sound_choice_keys if mode == "multiple_sounds" else (sound_choice_keys[0] if sound_choice_keys else "B"),
                 "custom_sound_path": custom_sound_path,
                 "censor_volume": censor_volume,
+                "overlap_censor": overlap_censor,
+                "marked_audio_volume": marked_audio_volume,
+                "padding_before_ms": int(padding_before_sec * 1000) if use_padding else 0,
+                "padding_after_ms": int(padding_after_sec * 1000) if use_padding else 0,
                 "export_raw_txt": export_raw_txt,
                 "export_clean_txt": export_clean_txt,
                 "export_raw_srt": export_raw_srt,
