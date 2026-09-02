@@ -1,6 +1,7 @@
 import os
 import re
 import string
+import urllib.request
 import numpy as np
 try:
     import tensorflow as tf
@@ -49,15 +50,29 @@ def advanced_clean_text(text: str) -> str:
     words = [lemmatizer.lemmatize(w) for w in text.split() if w not in custom_stopwords]
     return " ".join(words)
 
+
 CATEGORIES = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(CURRENT_DIR, "toxicity_model.keras")
+MODEL_URL = "https://github.com/engmohammedsobhy/profanity-cleaner/releases/download/v1.0.0/toxicity_model.keras"
 
-try:
-    model = tf.keras.models.load_model(MODEL_PATH) if tf is not None else None
-except Exception as e:
-    model = None
-    print(f"Warning: Could not load toxicity model from {MODEL_PATH}: {e}")
+MODEL_LOAD_ERROR = None
+model = None
+
+if tf is not None:
+    try:
+        if not os.path.exists(MODEL_PATH):
+            print(f"Downloading toxicity model from GitHub Release...")
+            urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+            print("Download completed successfully.")
+        
+        model = tf.keras.models.load_model(MODEL_PATH)
+    except Exception as e:
+        model = None
+        MODEL_LOAD_ERROR = str(e)
+        print(f"Warning: Could not load toxicity model from {MODEL_PATH}: {e}")
+else:
+    MODEL_LOAD_ERROR = "TensorFlow is not installed."
 
 DETOX_SYSTEM_PROMPT = """
 You are a direct text rephraser.
