@@ -664,10 +664,9 @@ class DummyCallback:
 
 
 @st.cache_resource(max_entries=1, show_spinner=False)
-def _cached_load_asr(model_name: str) -> bool:
+def _cached_load_asr(model_name: str) -> Any:
     b = require_backend()
-    b.load_ml_resources(DummyCallback(), False, model_name)
-    return True
+    return b.load_ml_resources(DummyCallback(), False, model_name)
 
 
 def process_media_file(file_path: str, options: Dict[str, Any], progress_callback: Any = None, progress_value_callback: Any = None) -> Dict[str, Any]:
@@ -689,7 +688,12 @@ def process_media_file(file_path: str, options: Dict[str, Any], progress_callbac
 
     asr_model = options.get("asr_model", "base.en")
     emit(progress_callback, f"Initializing ASR model ({asr_model})...")
-    _cached_load_asr(asr_model)
+    cached_model = _cached_load_asr(asr_model)
+    if cached_model is not None:
+        b.ML_MODEL_CACHE[asr_model] = cached_model
+        b.ASR_MODEL_KEY_CURRENT = asr_model
+    else:
+        b.load_ml_resources(progress_callback, False, asr_model)
 
     emit(progress_value_callback, 5)
     pre_converted = b.pre_convert_to_wav(file_path, progress_callback)

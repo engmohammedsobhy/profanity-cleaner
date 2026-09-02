@@ -371,6 +371,8 @@ def load_ml_resources(progress_callback: Any, load_toxicity: bool, asr_model_nam
             VAD_MODEL = None
             progress_callback.emit(f"VAD model optional filtering skipped ({e}). Proceeding directly with Whisper ASR.")
 
+    return ML_MODEL_CACHE.get(asr_model_name)
+
 def apply_vad_filtering(input_path: str, progress_callback: Any) -> str:
     progress_callback = _normalize_callback(progress_callback)
     
