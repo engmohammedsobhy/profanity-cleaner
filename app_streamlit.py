@@ -49,7 +49,7 @@ st.markdown(
             gap: 0.85rem !important;
         }
         
-        div[data-testid="stForm"], div.stContainer > div, div[data-testid="stExpander"] {
+        div[data-testid="stForm"], div.stContainer > div {
             background: var(--card-bg) !important;
             backdrop-filter: blur(30px) !important;
             -webkit-backdrop-filter: blur(30px) !important;
@@ -112,6 +112,62 @@ st.markdown(
             margin-bottom: 0.6rem;
         }
 
+        /* Guided Step Headers */
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 0.85rem;
+            letter-spacing: -0.015em;
+        }
+
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #0071e3;
+            color: #ffffff;
+            font-size: 0.85rem;
+            font-weight: 700;
+            box-shadow: 0 2px 10px rgba(0, 113, 227, 0.4);
+        }
+
+        /* Hero Media Player Box */
+        .hero-player-box {
+            border-radius: 16px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(0, 113, 227, 0.4);
+            box-shadow: 0 4px 24px rgba(0, 113, 227, 0.18);
+            margin-top: 0.5rem;
+            margin-bottom: 0.8rem;
+        }
+
+        /* Expander Collapsible Styling */
+        div[data-testid="stExpander"] {
+            background: rgba(18, 18, 22, 0.7) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 14px !important;
+            margin-top: 0.8rem !important;
+            margin-bottom: 0.8rem !important;
+        }
+
+        div[data-testid="stExpander"] summary {
+            font-weight: 600 !important;
+            font-size: 0.92rem !important;
+            color: #f5f5f7 !important;
+        }
+
+        div[data-testid="stExpander"] summary:hover {
+            color: #2997ff !important;
+        }
+
         /* Apple Metric Strips */
         .metric-card {
             background: rgba(255, 255, 255, 0.03);
@@ -148,20 +204,20 @@ st.markdown(
         .stButton > button {
             border-radius: var(--pill-radius) !important;
             font-weight: 600 !important;
-            font-size: 0.9rem !important;
-            padding: 0.55rem 1.4rem !important;
+            font-size: 0.95rem !important;
+            padding: 0.65rem 1.5rem !important;
             transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
             border: 1px solid transparent !important;
             background: var(--apple-blue) !important;
             color: #ffffff !important;
             letter-spacing: -0.01em !important;
-            box-shadow: 0 4px 14px var(--apple-blue-glow) !important;
+            box-shadow: 0 4px 16px var(--apple-blue-glow) !important;
         }
 
         .stButton > button:hover {
             background: var(--apple-blue-hover) !important;
             color: #ffffff !important;
-            box-shadow: 0 6px 20px rgba(0, 113, 227, 0.5) !important;
+            box-shadow: 0 6px 22px rgba(0, 113, 227, 0.5) !important;
             transform: scale(1.015) !important;
         }
 
@@ -208,8 +264,8 @@ st.markdown(
 
         textarea, input, select, div[data-baseweb="select"] > div {
             border-radius: 12px !important;
-            background: rgba(0, 0, 0, 0.4) !important;
-            border: 1px solid var(--card-border) !important;
+            background: rgba(0, 0, 0, 0.45) !important;
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
             color: var(--text-primary) !important;
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", sans-serif !important;
             transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
@@ -225,10 +281,10 @@ st.markdown(
             color: #6e6e73 !important;
         }
 
-        /* Streamlit accent controls override (Blue) */
+        /* High Contrast Streamlit Accent Overrides */
         [data-baseweb="slider"] div[role="slider"] {
             background-color: var(--apple-blue) !important;
-            border-color: var(--apple-blue) !important;
+            border: 2px solid #ffffff !important;
         }
 
         [data-baseweb="slider"] div[data-testid="stSliderTickBar"] + div {
@@ -257,7 +313,7 @@ st.markdown(
 
         button[data-baseweb="tab"][aria-selected="true"] {
             color: #ffffff !important;
-            background: rgba(0, 113, 227, 0.15) !important;
+            background: rgba(0, 113, 227, 0.18) !important;
         }
 
         div[data-baseweb="tab-highlight"] {
@@ -291,6 +347,7 @@ def init_state() -> None:
         "media_logs": [],
         "text_logs": [],
         "current_page": "Home",
+        "active_media_key": None,
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
@@ -455,77 +512,134 @@ def render_media_result(result: Dict[str, Any]) -> None:
 
 
 def render_media_tab() -> None:
-    st.markdown("<div class='section-label'>Media Processing</div>", unsafe_allow_html=True)
-    input_col, options_col = st.columns([1.0, 1.0], gap="small")
+    st.markdown("<div class='section-label'>Media Moderation Workflow</div>", unsafe_allow_html=True)
+    input_col, options_col = st.columns([0.48, 0.52], gap="medium")
 
     with input_col:
+        # STEP 1: Source Media Input & Standout Video Player
         with st.container(border=True):
-            st.markdown("#### Input File")
-            uploaded_media = st.file_uploader("Input Media File", type=[ext.strip(".") for ext in workflows.MEDIA_EXTENSIONS], key="media_upload", label_visibility="collapsed")
+            st.markdown(
+                """
+                <div class='step-header'>
+                    <span class='step-number'>1</span> Source Media Input
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            uploaded_media = st.file_uploader(
+                "Input Media File",
+                type=[ext.strip(".") for ext in workflows.MEDIA_EXTENSIONS],
+                key="media_upload",
+                label_visibility="collapsed",
+                help="Upload any video (.mp4, .mkv, .mov, .avi) or audio file (.mp3, .wav, .m4a).",
+            )
+
             if uploaded_media:
+                media_key = f"{uploaded_media.name}_{uploaded_media.size}"
+                if st.session_state.get("active_media_key") != media_key:
+                    st.session_state.media_result = None
+                    st.session_state.active_media_key = media_key
+
                 suffix = Path(uploaded_media.name).suffix.lower()
-                _col1, media_center, _col3 = st.columns([1, 2, 1])
-                with media_center:
-                    if suffix in (".mp4", ".mkv", ".avi", ".mov"):
-                        st.video(uploaded_media)
-                    else:
-                        st.audio(uploaded_media)
+                st.markdown("<div class='hero-player-box'>", unsafe_allow_html=True)
+                if suffix in (".mp4", ".mkv", ".avi", ".mov", ".webm"):
+                    st.video(uploaded_media)
+                else:
+                    st.audio(uploaded_media)
+                st.markdown("</div>", unsafe_allow_html=True)
+            else:
+                st.session_state.media_result = None
+                st.session_state.active_media_key = None
+                st.info("👈 Upload an audio or video file above to preview and configure censoring.")
+
             render_mascot("media")
 
-    if not uploaded_media:
-        with options_col:
-            st.info("👈 Please upload an audio or video file to start working.")
-        return
-
-    with input_col:
-        with st.container(border=True):
-            st.markdown("#### Moderation")
-            media_rating_preset = st.selectbox(
-                "Severity Rating Preset",
-                options=workflows.RATING_PRESETS,
-                index=0,
-                help="Default (strict censor), PG-13 (allows mild oaths), R (allows mild & moderate swearing), NC-17 (allows all except severe slurs).",
-            )
-            asr_label = st.selectbox("ASR Model (Whisper)", list(workflows.ASR_MODELS.keys()), index=1, help="Whisper model size: larger models offer higher transcription accuracy.")
-
-            st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
-            wl_col, bl_col = st.columns(2)
-            with wl_col:
-                selected_whitelist = st.text_area("Whitelist", placeholder="Allowed words", height=90, key="media_whitelist")
-            with bl_col:
-                selected_blacklist = st.text_area("Blacklist", placeholder="Forced censor words", height=90, key="media_blacklist")
+        # STEP 4 / PRIMARY ACTION: Standout Processing Button right under media input
+        if uploaded_media:
+            with st.container(border=True):
+                st.markdown("<div class='section-label' style='margin-bottom:4px;'>Action</div>", unsafe_allow_html=True)
+                process = st.button("🚀 Start Media Processing", type="primary", use_container_width=True)
+        else:
+            process = False
 
     with options_col:
+        if not uploaded_media:
+            st.info("💡 Upload an audio or video file in Step 1 to configure censoring options and word rules.")
+            return
+
+        # STEP 2: Core Rules & Moderation
         with st.container(border=True):
-            st.markdown("#### Audio Censoring")
+            st.markdown(
+                """
+                <div class='step-header'>
+                    <span class='step-number'>2</span> Moderation & Word Rules
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            mod_c1, mod_c2 = st.columns(2)
+            with mod_c1:
+                media_rating_preset = st.selectbox(
+                    "Severity Rating Preset",
+                    options=workflows.RATING_PRESETS,
+                    index=0,
+                    help="Default (strict censor), PG-13 (allows mild oaths), R (allows mild & moderate swearing), NC-17 (allows all except severe slurs).",
+                )
+            with mod_c2:
+                asr_label = st.selectbox(
+                    "ASR Model (Whisper)",
+                    list(workflows.ASR_MODELS.keys()),
+                    index=1,
+                    help="Whisper speech recognition model size. Larger models provide higher transcription accuracy.",
+                )
+
+            st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
+            wl_col, bl_col = st.columns(2)
+            with wl_col:
+                selected_whitelist = st.text_area(
+                    "Whitelist",
+                    placeholder="Allowed words (e.g. god, damn)",
+                    height=90,
+                    key="media_whitelist",
+                    help="Words listed here will NEVER be censored, overriding standard profanity filters.",
+                )
+            with bl_col:
+                selected_blacklist = st.text_area(
+                    "Blacklist",
+                    placeholder="Forced censor words (e.g. idiot)",
+                    height=90,
+                    key="media_blacklist",
+                    help="Words listed here will ALWAYS be censored, even if not in standard profanity dictionary.",
+                )
+
+        # STEP 3: Censoring & Audio Settings
+        with st.container(border=True):
+            st.markdown(
+                """
+                <div class='step-header'>
+                    <span class='step-number'>3</span> Audio Censoring & Output
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
             censor_style_choice = st.radio(
-                "Censoring style",
+                "Censoring Style",
                 options=["Silence", "One sound", "Multiple sounds"],
                 index=1,
                 horizontal=True,
+                help="Choose whether to mute flagged words silently, play a single censor bleep, or layer multiple sounds.",
             )
 
-            mode_map = {
-                "Silence": "silence",
-                "One sound": "sound",
-                "Multiple sounds": "multiple_sounds",
-            }
+            mode_map = {"Silence": "silence", "One sound": "sound", "Multiple sounds": "multiple_sounds"}
             mode = mode_map[censor_style_choice]
-
-            sound_map = {
-                "Sine wave": "B",
-                "Quack": "Q",
-                "Dolphin": "D",
-                "Triggered": "T",
-                "Custom": "C",
-            }
+            sound_map = {"Sine wave": "B", "Quack": "Q", "Dolphin": "D", "Triggered": "T", "Custom": "C"}
 
             sound_choice_keys = []
             custom_sound_path = ""
             custom_sound_paths = []
 
             if mode == "sound":
-                selected_sound = st.selectbox("Sound Choice", list(sound_map.keys()))
+                selected_sound = st.selectbox("Sound Choice", list(sound_map.keys()), help="Select the audio bleep/effect to play during profane words.")
                 sound_choice_keys = [sound_map[selected_sound]]
                 if selected_sound == "Custom":
                     uploaded_custom_sound = st.file_uploader("Upload Custom Audio (WAV/MP3)", type=["wav", "mp3", "ogg"], accept_multiple_files=True, key="custom_sound")
@@ -535,9 +649,10 @@ def render_media_tab() -> None:
 
             elif mode == "multiple_sounds":
                 selected_sounds = st.multiselect(
-                    "Sound Choices (Played simultaneously overlaid at each profane word)",
+                    "Sound Choices",
                     options=list(sound_map.keys()),
                     default=["Sine wave", "Quack", "Dolphin"],
+                    help="Selected sounds will be overlaid together at each profane word timestamp.",
                 )
                 sound_choice_keys = [sound_map[s] for s in selected_sounds]
                 if "Custom" in selected_sounds:
@@ -546,55 +661,55 @@ def render_media_tab() -> None:
                         custom_sound_paths = workflows.save_uploaded_files(uploaded_custom_sounds, "profanity_cleaner_custom")
                         custom_sound_path = custom_sound_paths[0] if custom_sound_paths else ""
 
-            overlap_censor = False
-            marked_audio_volume = 100.0
+            # Collapsible Accordion for Advanced Audio & Timing Controls
+            with st.expander("⚙️ Advanced Audio & Timing Controls", expanded=False):
+                overlap_censor = False
+                marked_audio_volume = 100.0
 
-            if mode in ["sound", "multiple_sounds"]:
-                c1, c2 = st.columns(2)
-                with c1:
-                    overlap_censor = st.checkbox("Overlap censor audio", value=False, help="Make original audio heard together with the censor sound.")
-                with c2:
-                    marked_audio_volume = st.slider(
-                        "Marked audio volume",
-                        min_value=0,
-                        max_value=100,
-                        value=100,
-                        step=1,
-                        disabled=not overlap_censor,
-                        help="Original audio volume level (0-100%) when censor sound plays.",
-                    )
+                if mode in ["sound", "multiple_sounds"]:
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        overlap_censor = st.checkbox("Overlap censor audio", value=False, help="Keep original audio audible underneath the censor sound instead of completely muting it.")
+                    with c2:
+                        marked_audio_volume = st.slider(
+                            "Original Audio Volume (%)",
+                            min_value=0,
+                            max_value=100,
+                            value=100,
+                            step=1,
+                            disabled=not overlap_censor,
+                            help="Original audio volume level (0-100%) when censor sound plays in overlap mode.",
+                        )
 
-                censor_volume = st.slider("Censor Sound Volume (dB)", min_value=-30.0, max_value=30.0, value=0.0, step=1.0)
-                loop_censor_sound = st.checkbox("Loop censor sound", value=True, help="Repeats short censor sound continuously until the profane word finishes speaking.")
-            else:
-                censor_volume = 0.0
-                loop_censor_sound = True
+                    censor_volume = st.slider("Censor Sound Volume (dB)", min_value=-30.0, max_value=30.0, value=0.0, step=1.0, help="Adjust gain boost or attenuation for censor audio.")
+                    loop_censor_sound = st.checkbox("Loop censor sound", value=True, help="Repeats short censor sound continuously until the profane word finishes speaking.")
+                else:
+                    censor_volume = 0.0
+                    loop_censor_sound = True
 
-            use_padding = st.checkbox("Time padding", value=True, help="Pad censoring timeframe before and after each flagged word.")
-            padding_before_sec = 0.05
-            padding_after_sec = 0.05
-            if use_padding:
-                pad_c1, pad_c2 = st.columns(2)
-                with pad_c1:
-                    padding_before_sec = st.number_input("Before (sec)", min_value=0.00, max_value=2.00, value=0.05, step=0.01, format="%.2f")
-                with pad_c2:
-                    padding_after_sec = st.number_input("After (sec)", min_value=0.00, max_value=2.00, value=0.05, step=0.01, format="%.2f")
+                use_padding = st.checkbox("Time padding", value=True, help="Extend censoring timeframe slightly before and after each flagged word to prevent leaking fast speech syllables.")
+                padding_before_sec = 0.05
+                padding_after_sec = 0.05
+                if use_padding:
+                    pad_c1, pad_c2 = st.columns(2)
+                    with pad_c1:
+                        padding_before_sec = st.number_input("Padding Before (sec)", min_value=0.00, max_value=2.00, value=0.05, step=0.01, format="%.2f", help="Time added before word start timestamp.")
+                    with pad_c2:
+                        padding_after_sec = st.number_input("Padding After (sec)", min_value=0.00, max_value=2.00, value=0.05, step=0.01, format="%.2f", help="Time added after word end timestamp.")
 
-        with st.container(border=True):
-            st.markdown("#### Transcript Exports")
+            # Export Preferences Panel inside Step 3
+            st.markdown("<div class='section-label' style='margin-top:10px;'>Transcript & Log Exports</div>", unsafe_allow_html=True)
             out_cols = st.columns(5)
             with out_cols[0]:
-                export_raw_txt = st.checkbox("Raw .txt", value=False)
+                export_raw_txt = st.checkbox("Raw .txt", value=False, help="Export un-censored transcription text file.")
             with out_cols[1]:
-                export_clean_txt = st.checkbox("Clean .txt", value=False)
+                export_clean_txt = st.checkbox("Clean .txt", value=False, help="Export profanity-masked transcription text file.")
             with out_cols[2]:
-                export_raw_srt = st.checkbox("Raw .srt", value=False)
+                export_raw_srt = st.checkbox("Raw .srt", value=False, help="Export un-censored subtitle file.")
             with out_cols[3]:
-                export_clean_srt = st.checkbox("Clean .srt", value=False)
+                export_clean_srt = st.checkbox("Clean .srt", value=False, help="Export profanity-masked subtitle file.")
             with out_cols[4]:
-                export_json = st.checkbox("Log .json", value=True)
-
-        process = st.button("Start Media Processing", type="primary", use_container_width=True, disabled=uploaded_media is None)
+                export_json = st.checkbox("Log .json", value=True, help="Export detailed word-level timestamp log in JSON format.")
 
     if process and uploaded_media:
         progress_slot = st.progress(0)
