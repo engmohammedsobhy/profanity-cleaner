@@ -454,6 +454,40 @@ def apply_vad_filtering(input_path: str, progress_callback: Any) -> str:
         return input_path
 
 
+def load_audio_samples(audio_path: str) -> Any:
+    try:
+        if 'soundfile' in sys.modules:
+            import soundfile as sf
+            data, sr = sf.read(audio_path, dtype='float32')
+            if data.ndim > 1:
+                data = data.mean(axis=1)
+            if sr != 16000 and 'torchaudio' in sys.modules:
+                tensor = torch.from_numpy(data).unsqueeze(0)
+                resampler = torchaudio.transforms.Resample(sr, 16000)
+                data = resampler(tensor).squeeze(0).numpy()
+            if sr == 16000 or 'torchaudio' in sys.modules:
+                return data
+    except Exception:
+        pass
+
+    try:
+        if 'pydub' in sys.modules:
+            audio = AudioSegment.from_file(audio_path)
+            audio = audio.set_frame_rate(16000).set_channels(1)
+            samples = np.array(audio.get_array_of_samples(), dtype=np.float32)
+            if audio.sample_width == 2:
+                samples /= 32768.0
+            elif audio.sample_width == 4:
+                samples /= 2147483648.0
+            elif audio.sample_width == 1:
+                samples = (samples - 128.0) / 128.0
+            return samples
+    except Exception:
+        pass
+
+    return audio_path
+
+
 def transcribe_audio(audio_path: str, progress_callback: Any) -> Dict[str, Any]:
     progress_callback = _normalize_callback(progress_callback)
     if 'whisper' not in sys.modules:
@@ -475,9 +509,11 @@ def transcribe_audio(audio_path: str, progress_callback: Any) -> Dict[str, Any]:
     import warnings
     warnings.filterwarnings("ignore", message="FP16 is not supported on CPU; using FP32 instead")
 
+    audio_input = load_audio_samples(audio_path)
+
     with torch.no_grad():
         result = asr_model.transcribe(
-            audio_path,
+            audio_input,
             language="en",
             word_timestamps=True,
             verbose=False
