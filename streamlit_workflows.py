@@ -744,6 +744,7 @@ def process_media_file(file_path: str, options: Dict[str, Any], progress_callbac
         padding_before_ms=int(options.get("padding_before_ms", 50)),
         padding_after_ms=int(options.get("padding_after_ms", 50)),
         custom_sound_paths=options.get("custom_sound_paths", []),
+        loop_censor_sound=bool(options.get("loop_censor_sound", True)),
     )
     if not os.path.exists(censor_path):
         censor_path = _fallback_output_copy(file_path)

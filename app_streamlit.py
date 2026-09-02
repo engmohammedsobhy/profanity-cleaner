@@ -325,12 +325,14 @@ def render_media_result(result: Dict[str, Any]) -> None:
 
     st.markdown("<br>", unsafe_allow_html=True)
     prev_col, logs_col = st.columns([0.45, 0.55], gap="medium")
+    is_video = False
     with prev_col:
         st.markdown("<div class='section-label'>Censored Media Preview</div>", unsafe_allow_html=True)
         if censored_path and os.path.exists(censored_path):
             ext = Path(censored_path).suffix.lower()
             if ext in [".mp4", ".mkv", ".avi", ".mov", ".webm"]:
                 st.video(censored_path)
+                is_video = True
             else:
                 st.audio(censored_path)
         else:
@@ -341,11 +343,12 @@ def render_media_result(result: Dict[str, Any]) -> None:
         flagged = [row for row in result.get("log", []) if row.get("is_profane")]
         table_rows = flagged or result.get("log", [])[:250]
         if table_rows:
+            calc_height = min(600, max(420 if is_video else 220, len(table_rows) * 36 + 40))
             st.dataframe(
                 compact_rows(table_rows, ["start_ms", "end_ms", "word", "is_profane"]),
                 use_container_width=True,
                 hide_index=True,
-                height=300,
+                height=calc_height,
             )
 
 
@@ -369,7 +372,7 @@ def render_media_tab() -> None:
 
     if not uploaded_media:
         with options_col:
-            st.info("👈 Please upload an audio or video file to reveal moderation & audio censoring options.")
+            st.info("👈 Please upload an audio or video file to start working.")
         return
 
     with input_col:
@@ -383,27 +386,28 @@ def render_media_tab() -> None:
             )
             asr_label = st.selectbox("ASR Model (Whisper)", list(workflows.ASR_MODELS.keys()), index=1, help="Whisper model size: larger models offer higher transcription accuracy.")
 
-            if "whitelist_options" not in st.session_state:
-                st.session_state.whitelist_options = ["god", "damn", "hell", "crap", "bloody"]
-            if "whitelist_tags_ms" not in st.session_state:
-                st.session_state.whitelist_tags_ms = []
+            if "whitelist_words" not in st.session_state:
+                st.session_state.whitelist_words = []
+            if "blacklist_words" not in st.session_state:
+                st.session_state.blacklist_words = []
 
             def _add_whitelist_word():
                 val = st.session_state.get("add_w_input", "").strip().lower()
                 if val:
                     for w in val.replace(",", " ").split():
-                        if w not in st.session_state.whitelist_options:
-                            st.session_state.whitelist_options.append(w)
-                        if w not in st.session_state.whitelist_tags_ms:
-                            st.session_state.whitelist_tags_ms.append(w)
+                        if w not in st.session_state.whitelist_words:
+                            st.session_state.whitelist_words.append(w)
                     st.session_state.add_w_input = ""
 
+            w_options = list(dict.fromkeys(["god", "damn", "hell", "crap", "bloody"] + st.session_state.whitelist_words))
             selected_whitelist = st.multiselect(
                 "Whitelist (Allowed Words)",
-                options=st.session_state.whitelist_options,
-                help="Words to allow/skip during censoring. Select from pill tags or type custom word below.",
+                options=w_options,
+                default=st.session_state.whitelist_words,
+                help="Words to allow/skip during censoring. Added words automatically become active pill tags.",
                 key="whitelist_tags_ms",
             )
+            st.session_state.whitelist_words = selected_whitelist
 
             w_add_c1, w_add_c2 = st.columns([0.7, 0.3])
             with w_add_c1:
@@ -413,27 +417,23 @@ def render_media_tab() -> None:
 
             st.markdown("<br>", unsafe_allow_html=True)
 
-            if "blacklist_options" not in st.session_state:
-                st.session_state.blacklist_options = ["idiot", "fool", "stupid", "dumb", "jerk"]
-            if "blacklist_tags_ms" not in st.session_state:
-                st.session_state.blacklist_tags_ms = []
-
             def _add_blacklist_word():
                 val = st.session_state.get("add_b_input", "").strip().lower()
                 if val:
                     for b in val.replace(",", " ").split():
-                        if b not in st.session_state.blacklist_options:
-                            st.session_state.blacklist_options.append(b)
-                        if b not in st.session_state.blacklist_tags_ms:
-                            st.session_state.blacklist_tags_ms.append(b)
+                        if b not in st.session_state.blacklist_words:
+                            st.session_state.blacklist_words.append(b)
                     st.session_state.add_b_input = ""
 
+            b_options = list(dict.fromkeys(["idiot", "fool", "stupid", "dumb", "jerk"] + st.session_state.blacklist_words))
             selected_blacklist = st.multiselect(
                 "Blacklist (Forced Censor Words)",
-                options=st.session_state.blacklist_options,
-                help="Words to force censor. Select from pill tags or type custom word below.",
+                options=b_options,
+                default=st.session_state.blacklist_words,
+                help="Words to force censor. Added words automatically become active pill tags.",
                 key="blacklist_tags_ms",
             )
+            st.session_state.blacklist_words = selected_blacklist
 
             b_add_c1, b_add_c2 = st.columns([0.7, 0.3])
             with b_add_c1:
@@ -511,8 +511,10 @@ def render_media_tab() -> None:
                     )
 
                 censor_volume = st.slider("Censor Sound Volume (dB)", min_value=-30.0, max_value=30.0, value=0.0, step=1.0)
+                loop_censor_sound = st.checkbox("Loop censor sound", value=True, help="Repeats short censor sound continuously until the profane word finishes speaking.")
             else:
                 censor_volume = 0.0
+                loop_censor_sound = True
 
             use_padding = st.checkbox("Time padding", value=True, help="Pad censoring timeframe before and after each flagged word.")
             padding_before_sec = 0.05
@@ -554,6 +556,7 @@ def render_media_tab() -> None:
                 "custom_sound_path": custom_sound_path,
                 "custom_sound_paths": custom_sound_paths,
                 "censor_volume": censor_volume,
+                "loop_censor_sound": loop_censor_sound,
                 "overlap_censor": overlap_censor,
                 "marked_audio_volume": marked_audio_volume,
                 "padding_before_ms": int(padding_before_sec * 1000) if use_padding else 0,

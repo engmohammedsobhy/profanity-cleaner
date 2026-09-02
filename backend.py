@@ -622,7 +622,7 @@ def generate_beep_segment(duration_ms: int, sample_rate: int, channels: int) -> 
         channels=channels
     )
 
-def load_censor_sound(sound_choice: str, duration_ms: int, sample_rate: int, channels: int, custom_sound_path: str = "", volume_change: float = 0.0, progress_callback: Any = None) -> AudioSegment:
+def load_censor_sound(sound_choice: str, duration_ms: int, sample_rate: int, channels: int, custom_sound_path: str = "", volume_change: float = 0.0, progress_callback: Any = None, loop_sound: bool = True) -> AudioSegment:
     progress_callback = _normalize_callback(progress_callback)
     if 'pydub' not in sys.modules:
         return AudioSegment.silent(duration=duration_ms)
@@ -651,10 +651,16 @@ def load_censor_sound(sound_choice: str, duration_ms: int, sample_rate: int, cha
         censor_sound = censor_sound.set_frame_rate(sample_rate).set_channels(channels)
 
         if len(censor_sound) < duration_ms:
-            repeat_count = int(np.ceil(duration_ms / len(censor_sound)))
-            censor_sound = censor_sound * repeat_count
+            if loop_sound:
+                repeat_count = int(np.ceil(duration_ms / len(censor_sound)))
+                censor_sound = censor_sound * repeat_count
+                censor_sound = censor_sound[:duration_ms]
+            else:
+                censor_sound = censor_sound + AudioSegment.silent(duration=duration_ms - len(censor_sound))
+        else:
+            censor_sound = censor_sound[:duration_ms]
 
-        return censor_sound[:duration_ms] + volume_change
+        return censor_sound + volume_change
 
     except Exception as e:
         progress_callback.emit(f"Error loading custom sound: {e}. Falling back to Beep.")
@@ -676,6 +682,7 @@ def censor_media(
     padding_before_ms: int = 50,
     padding_after_ms: int = 50,
     custom_sound_paths: Any = None,
+    loop_censor_sound: bool = True,
 ) -> str:
     progress_callback = _normalize_callback(progress_callback)
     progress_value_callback = _normalize_callback(progress_value_callback)
@@ -783,11 +790,11 @@ def censor_media(
                 sounds_list = ['B']
 
             replacement_segment = load_censor_sound(
-                sounds_list[0], actual_duration, media.frame_rate, media.channels, custom_sound_path, volume_change, progress_callback
+                sounds_list[0], actual_duration, media.frame_rate, media.channels, custom_sound_path, volume_change, progress_callback, loop_sound=loop_censor_sound
             )
             for snd in sounds_list[1:]:
                 over_seg = load_censor_sound(
-                    snd, actual_duration, media.frame_rate, media.channels, custom_sound_path, volume_change, progress_callback
+                    snd, actual_duration, media.frame_rate, media.channels, custom_sound_path, volume_change, progress_callback, loop_sound=loop_censor_sound
                 )
                 replacement_segment = replacement_segment.overlay(over_seg)
 
