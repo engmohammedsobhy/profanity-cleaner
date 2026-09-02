@@ -663,10 +663,15 @@ def _fallback_output_copy(input_path: str) -> str:
     return output_path
 
 
+class DummyCallback:
+    def emit(self, msg: Any) -> None:
+        pass
+
+
 @st.cache_resource(max_entries=1, show_spinner=False)
 def _cached_load_asr(model_name: str) -> bool:
     b = require_backend()
-    b.load_ml_resources(lambda msg: None, False, model_name)
+    b.load_ml_resources(DummyCallback(), False, model_name)
     return True
 
 

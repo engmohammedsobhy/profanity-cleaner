@@ -266,7 +266,8 @@ def load_word_list_from_text(text_content: str) -> Set[str]:
                 
     return normalized_words
 
-def pre_convert_to_wav(input_path: str, progress_callback: Callable) -> str:
+def pre_convert_to_wav(input_path: str, progress_callback: Any) -> str:
+    progress_callback = _normalize_callback(progress_callback)
     
     if 'pydub' not in sys.modules:
         progress_callback.emit("pydub not imported. Skipping pre-conversion.")
@@ -296,10 +297,29 @@ def pre_convert_to_wav(input_path: str, progress_callback: Callable) -> str:
         progress_callback.emit(f"Pre-conversion failed: {e}. VAD may still fail. Ensure FFmpeg is installed and on your PATH.")
         return input_path
 
+class CallbackWrapper:
+    def __init__(self, target: Any):
+        self.target = target
+
+    def emit(self, message: Any) -> None:
+        if self.target is None:
+            return
+        if hasattr(self.target, "emit") and callable(getattr(self.target, "emit")):
+            self.target.emit(message)
+        elif callable(self.target):
+            self.target(message)
+
+
+def _normalize_callback(cb: Any) -> CallbackWrapper:
+    if isinstance(cb, CallbackWrapper):
+        return cb
+    return CallbackWrapper(cb)
+
+
 class Stream(object):
     
-    def __init__(self, callback: Callable):
-        self.callback = callback
+    def __init__(self, callback: Any):
+        self.callback = _normalize_callback(callback)
         self.line_buffer = ""
         
     def isatty(self):
@@ -329,7 +349,9 @@ class Stream(object):
             self.callback.emit(self.line_buffer.strip())
         self.line_buffer = ""
 
-def load_ml_resources(progress_callback: Callable, load_toxicity: bool, asr_model_name: str):
+
+def load_ml_resources(progress_callback: Any, load_toxicity: bool, asr_model_name: str):
+    progress_callback = _normalize_callback(progress_callback)
     
     if 'whisper' not in sys.modules or 'torch' not in sys.modules:
         raise Exception("Core ML libraries (whisper, torch) are not installed. Cannot proceed.")
@@ -388,7 +410,8 @@ def load_ml_resources(progress_callback: Callable, load_toxicity: bool, asr_mode
     finally:
         sys.stdout = original_stdout
 
-def apply_vad_filtering(input_path: str, progress_callback: Callable) -> str:
+def apply_vad_filtering(input_path: str, progress_callback: Any) -> str:
+    progress_callback = _normalize_callback(progress_callback)
     
     if 'torchaudio' not in sys.modules or 'pydub' not in sys.modules:
         progress_callback.emit("torchaudio or pydub not imported. Skipping VAD filtering.")
@@ -468,7 +491,8 @@ def apply_vad_filtering(input_path: str, progress_callback: Callable) -> str:
         return input_path
 
 
-def transcribe_audio(audio_path: str, progress_callback: Callable) -> Dict[str, Any]:
+def transcribe_audio(audio_path: str, progress_callback: Any) -> Dict[str, Any]:
+    progress_callback = _normalize_callback(progress_callback)
     if 'whisper' not in sys.modules:
         raise Exception("Whisper ASR library not imported. Cannot transcribe.")
         
@@ -480,6 +504,8 @@ def transcribe_audio(audio_path: str, progress_callback: Callable) -> Dict[str, 
     asr_model = ML_MODEL_CACHE.get(ASR_MODEL_KEY_CURRENT)
     if asr_model is None:
         raise Exception(f"ASR Model ('{ASR_MODEL_KEY_CURRENT}') not loaded. This shouldn't happen.")
+
+    progress_callback.emit("Starting audio transcription...")
         
     progress_callback.emit("Starting audio transcription ( This may take time, maybe you should read a book lol )")
 
@@ -615,6 +641,9 @@ def censor_media(
     padding_before_ms: int = 50,
     padding_after_ms: int = 50,
 ) -> str:
+    progress_callback = _normalize_callback(progress_callback)
+    progress_value_callback = _normalize_callback(progress_value_callback)
+
     if 'pydub' not in sys.modules:
         raise Exception("pydub (requires FFmpeg) is not installed. Media censoring cannot proceed.")
         
