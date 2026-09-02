@@ -622,7 +622,7 @@ def generate_beep_segment(duration_ms: int, sample_rate: int, channels: int) -> 
         channels=channels
     )
 
-def load_censor_sound(sound_choice: str, duration_ms: int, sample_rate: int, channels: int, custom_sound_path: str, volume_change: float, progress_callback: Any) -> AudioSegment:
+def load_censor_sound(sound_choice: str, duration_ms: int, sample_rate: int, channels: int, custom_sound_path: str = "", volume_change: float = 0.0, progress_callback: Any = None) -> AudioSegment:
     progress_callback = _normalize_callback(progress_callback)
     if 'pydub' not in sys.modules:
         return AudioSegment.silent(duration=duration_ms)
@@ -630,36 +630,35 @@ def load_censor_sound(sound_choice: str, duration_ms: int, sample_rate: int, cha
     if sound_choice == 'B':
         return generate_beep_segment(duration_ms, sample_rate, channels) + volume_change
 
-    elif sound_choice in ['D', 'Q', 'T', 'C']:
-        if sound_choice == 'C' and custom_sound_path and os.path.exists(custom_sound_path):
-            sound_path = custom_sound_path
-        elif sound_choice == 'D':
-            sound_path = DOLPHIN_SOUND_PATH
-        elif sound_choice == 'Q':
-            sound_path = QUACK_SOUND_PATH
-        else:
-            sound_path = TRIGGERED_SOUND_PATH
+    sound_path = None
+    if os.path.exists(sound_choice):
+        sound_path = sound_choice
+    elif sound_choice == 'C' and custom_sound_path and os.path.exists(custom_sound_path):
+        sound_path = custom_sound_path
+    elif sound_choice == 'D':
+        sound_path = DOLPHIN_SOUND_PATH
+    elif sound_choice == 'Q':
+        sound_path = QUACK_SOUND_PATH
+    elif sound_choice == 'T':
+        sound_path = TRIGGERED_SOUND_PATH
 
+    if not sound_path or not os.path.exists(sound_path):
+        progress_callback.emit(f"Warning: Sound file '{sound_choice}' not found. Falling back to Beep.")
+        return generate_beep_segment(duration_ms, sample_rate, channels) + volume_change
 
-        if not os.path.exists(sound_path):
-            progress_callback.emit(f"Warning: Sound file '{os.path.basename(sound_path)}' not found. Falling back to Beep.")
-            return generate_beep_segment(duration_ms, sample_rate, channels) + volume_change
+    try:
+        censor_sound = AudioSegment.from_file(sound_path)
+        censor_sound = censor_sound.set_frame_rate(sample_rate).set_channels(channels)
 
-        try:
-            censor_sound = AudioSegment.from_file(sound_path)
-            censor_sound = censor_sound.set_frame_rate(sample_rate).set_channels(channels)
+        if len(censor_sound) < duration_ms:
+            repeat_count = int(np.ceil(duration_ms / len(censor_sound)))
+            censor_sound = censor_sound * repeat_count
 
-            if len(censor_sound) < duration_ms:
-                repeat_count = int(np.ceil(duration_ms / len(censor_sound)))
-                censor_sound = censor_sound * repeat_count
+        return censor_sound[:duration_ms] + volume_change
 
-            return censor_sound[:duration_ms] + volume_change
-
-        except Exception as e:
-            progress_callback.emit(f"Error loading custom sound: {e}. Falling back to Beep.")
-            return generate_beep_segment(duration_ms, sample_rate, channels) + volume_change
-
-    return AudioSegment.silent(duration=duration_ms)
+    except Exception as e:
+        progress_callback.emit(f"Error loading custom sound: {e}. Falling back to Beep.")
+        return generate_beep_segment(duration_ms, sample_rate, channels) + volume_change
 
 def censor_media(
     input_path: str,
@@ -676,6 +675,7 @@ def censor_media(
     marked_audio_volume: float = 100.0,
     padding_before_ms: int = 50,
     padding_after_ms: int = 50,
+    custom_sound_paths: Any = None,
 ) -> str:
     progress_callback = _normalize_callback(progress_callback)
     progress_value_callback = _normalize_callback(progress_value_callback)
@@ -765,9 +765,22 @@ def censor_media(
 
         if mode in ['sound', 'multiple_sounds']:
             if isinstance(sound_choice, list) and len(sound_choice) > 0:
-                sounds_list = sound_choice
+                raw_sounds = sound_choice
             else:
-                sounds_list = [str(sound_choice) if sound_choice else 'B']
+                raw_sounds = [str(sound_choice) if sound_choice else 'B']
+
+            c_paths = custom_sound_paths if isinstance(custom_sound_paths, list) and custom_sound_paths else ([custom_sound_path] if custom_sound_path else [])
+            sounds_list = []
+            for snd in raw_sounds:
+                if snd == 'C' and c_paths:
+                    for cp in c_paths:
+                        if cp and os.path.exists(cp):
+                            sounds_list.append(cp)
+                else:
+                    sounds_list.append(snd)
+
+            if not sounds_list:
+                sounds_list = ['B']
 
             replacement_segment = load_censor_sound(
                 sounds_list[0], actual_duration, media.frame_rate, media.channels, custom_sound_path, volume_change, progress_callback

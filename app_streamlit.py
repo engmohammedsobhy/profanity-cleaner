@@ -311,13 +311,6 @@ def render_media_result(result: Dict[str, Any]) -> None:
     st.markdown(result.get("summary_html", ""), unsafe_allow_html=True)
 
     censored_path = result.get("censored_path", "")
-    if censored_path and os.path.exists(censored_path):
-        st.markdown("<div class='section-label'>Censored Media Preview</div>", unsafe_allow_html=True)
-        ext = Path(censored_path).suffix.lower()
-        if ext in [".mp4", ".mkv", ".avi", ".mov", ".webm"]:
-            st.video(censored_path)
-        else:
-            st.audio(censored_path)
 
     st.markdown("<div class='section-label'>Downloads</div>", unsafe_allow_html=True)
     downloads = st.columns(3)
@@ -330,15 +323,30 @@ def render_media_result(result: Dict[str, Any]) -> None:
             for name, path in result["transcript_paths"].items():
                 download_path(path, f"Download {name.replace('_', ' ').title()}")
 
-    st.markdown("<div class='section-label'>Word Logs</div>", unsafe_allow_html=True)
-    flagged = [row for row in result.get("log", []) if row.get("is_profane")]
-    table_rows = flagged or result.get("log", [])[:250]
-    if table_rows:
-        st.dataframe(
-            compact_rows(table_rows, ["start_ms", "end_ms", "word", "is_profane"]),
-            use_container_width=True,
-            hide_index=True,
-        )
+    st.markdown("<br>", unsafe_allow_html=True)
+    prev_col, logs_col = st.columns([0.45, 0.55], gap="medium")
+    with prev_col:
+        st.markdown("<div class='section-label'>Censored Media Preview</div>", unsafe_allow_html=True)
+        if censored_path and os.path.exists(censored_path):
+            ext = Path(censored_path).suffix.lower()
+            if ext in [".mp4", ".mkv", ".avi", ".mov", ".webm"]:
+                st.video(censored_path)
+            else:
+                st.audio(censored_path)
+        else:
+            st.info("Preview unavailable.")
+
+    with logs_col:
+        st.markdown("<div class='section-label'>Word Logs</div>", unsafe_allow_html=True)
+        flagged = [row for row in result.get("log", []) if row.get("is_profane")]
+        table_rows = flagged or result.get("log", [])[:250]
+        if table_rows:
+            st.dataframe(
+                compact_rows(table_rows, ["start_ms", "end_ms", "word", "is_profane"]),
+                use_container_width=True,
+                hide_index=True,
+                height=300,
+            )
 
 
 def render_media_tab() -> None:
@@ -402,14 +410,16 @@ def render_media_tab() -> None:
 
             sound_choice_keys = []
             custom_sound_path = ""
+            custom_sound_paths = []
 
             if mode == "sound":
                 selected_sound = st.selectbox("Sound Choice", list(sound_map.keys()))
                 sound_choice_keys = [sound_map[selected_sound]]
                 if selected_sound == "Custom":
-                    uploaded_custom_sound = st.file_uploader("Upload Custom Audio (WAV/MP3)", type=["wav", "mp3", "ogg"], key="custom_sound")
+                    uploaded_custom_sound = st.file_uploader("Upload Custom Audio (WAV/MP3)", type=["wav", "mp3", "ogg"], accept_multiple_files=True, key="custom_sound")
                     if uploaded_custom_sound:
-                        custom_sound_path = workflows.save_uploaded_file(uploaded_custom_sound, "profanity_cleaner_custom")
+                        custom_sound_paths = workflows.save_uploaded_files(uploaded_custom_sound, "profanity_cleaner_custom")
+                        custom_sound_path = custom_sound_paths[0] if custom_sound_paths else ""
 
             elif mode == "multiple_sounds":
                 selected_sounds = st.multiselect(
@@ -419,9 +429,10 @@ def render_media_tab() -> None:
                 )
                 sound_choice_keys = [sound_map[s] for s in selected_sounds]
                 if "Custom" in selected_sounds:
-                    uploaded_custom_sound = st.file_uploader("Upload Custom Audio (WAV/MP3)", type=["wav", "mp3", "ogg"], key="custom_sound_multi")
-                    if uploaded_custom_sound:
-                        custom_sound_path = workflows.save_uploaded_file(uploaded_custom_sound, "profanity_cleaner_custom")
+                    uploaded_custom_sounds = st.file_uploader("Upload Custom Audio Files (WAV/MP3)", type=["wav", "mp3", "ogg"], accept_multiple_files=True, key="custom_sound_multi")
+                    if uploaded_custom_sounds:
+                        custom_sound_paths = workflows.save_uploaded_files(uploaded_custom_sounds, "profanity_cleaner_custom")
+                        custom_sound_path = custom_sound_paths[0] if custom_sound_paths else ""
 
             overlap_censor = False
             marked_audio_volume = 100.0
@@ -483,6 +494,7 @@ def render_media_tab() -> None:
                 "mode": mode,
                 "sound": sound_choice_keys if mode == "multiple_sounds" else (sound_choice_keys[0] if sound_choice_keys else "B"),
                 "custom_sound_path": custom_sound_path,
+                "custom_sound_paths": custom_sound_paths,
                 "censor_volume": censor_volume,
                 "overlap_censor": overlap_censor,
                 "marked_audio_volume": marked_audio_volume,

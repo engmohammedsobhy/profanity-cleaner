@@ -553,6 +553,13 @@ def save_uploaded_file(uploaded_file: Any, suffix_dir: str = "profanity_cleaner"
     return path
 
 
+def save_uploaded_files(uploaded_files: Any, suffix_dir: str = "profanity_cleaner") -> List[str]:
+    if not uploaded_files:
+        return []
+    files = uploaded_files if isinstance(uploaded_files, list) else [uploaded_files]
+    return [save_uploaded_file(f, suffix_dir) for f in files]
+
+
 def format_time_srt(ms: int) -> str:
     hours = int(ms / 3600000)
     ms -= hours * 3600000
@@ -576,12 +583,6 @@ def media_log_summary(log: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
 
 def create_media_summary_html(log: Sequence[Dict[str, Any]], censor_path: str, options: Dict[str, Any], log_path: Optional[str], transcript_paths: Dict[str, str]) -> str:
     summary = media_log_summary(log)
-    lines = []
-    for entry in log:
-        if entry.get("is_profane"):
-            labels = ["PROFANE"]
-            lines.append(f"[{format_time_srt(int(entry.get('start_ms', 0)))}] {html.escape(str(entry.get('word', '')))} - {' | '.join(labels)}")
-    details = "\n".join(lines) if lines else "None detected. The media was not altered."
     transcript_names = ", ".join(os.path.basename(path) for path in transcript_paths.values()) or "No transcript exports selected"
     log_name = os.path.basename(log_path) if log_path else "Export disabled"
     return (
@@ -593,7 +594,6 @@ def create_media_summary_html(log: Sequence[Dict[str, Any]], censor_path: str, o
         f"<p>Censored media: <b>{html.escape(os.path.basename(censor_path))}</b></p>"
         f"<p>Transcript exports: <b>{html.escape(transcript_names)}</b></p>"
         f"<p>Word log: <b>{html.escape(log_name)}</b></p>"
-        f"<pre>{details}</pre>"
     )
 
 
@@ -743,6 +743,7 @@ def process_media_file(file_path: str, options: Dict[str, Any], progress_callbac
         marked_audio_volume=float(options.get("marked_audio_volume", 100.0)),
         padding_before_ms=int(options.get("padding_before_ms", 50)),
         padding_after_ms=int(options.get("padding_after_ms", 50)),
+        custom_sound_paths=options.get("custom_sound_paths", []),
     )
     if not os.path.exists(censor_path):
         censor_path = _fallback_output_copy(file_path)
