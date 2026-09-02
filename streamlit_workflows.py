@@ -221,11 +221,16 @@ WORD_CATEGORIES: Dict[str, Set[str]] = {
     "Mild oaths & exclamations": {"god", "damn", "dammit", "damnit", "dang", "darn", "bloody", "hell", "heck", "geez", "gosh", "crap", "crappy", "blimey", "fudge", "shoot", "sugar", "omg"},
     "Mild insults": {"idiot", "dumb", "dumbass", "dummy", "loser", "jerk", "moron", "dork", "dweeb", "lame", "wimp", "airhead", "blockhead", "bonehead", "dimwit", "doofus", "dope", "goof", "goofball", "knucklehead", "meathead", "nitwit", "numbskull"},
     "Kill, suck": {"kill", "killed", "killer", "killing", "kills", "suck", "sucked", "sucker", "sucking", "sucks"},
-    "Body terms": {"butt", "butthead", "boob", "boobs", "tushy", "arse", "panties", "panty", "poop"},
-    "Mild Corn & Sexual terms": {"erotic", "escort", "hardcore", "hooker", "kinky", "kinkster", "lovemaking", "nude", "nudity", "playboy", "sex", "sexy", "swinger", "topless", "upskirt"},
-    "Moderate profane": {"shit", "shite", "shitty", "shithead", "bitch", "bitches", "bitching", "bitchy", "bastard", "asshole", "arsehole", "piss", "pissed", "pisser", "bullshit", "dipshit", "prick", "cock", "dick", "balls", "bollocks", "bugger", "twat", "wanker", "whore", "slut", "sluts", "camslut", "camwhore"},
-    "Strong profane": {"fuck", "fucking", "fucker", "fuckin", "fuckoff", "fuckyou", "motherfucker", "motherfucking", "cunt", "thundercunt", "cum", "cumshot", "cunnilingus", "fellatio", "gangbang", "orgy", "rape", "raping", "rapist", "dildo"},
-    "Extreme / Slurs": {"nigger", "nigga", "fag", "faggot", "dyke", "retard", "kike", "spic", "chink", "tranny", "wetback", "beaner", "coon", "darkie", "raghead", "towelhead"},
+    "body terms": {"butt", "butthead", "boob", "boobs", "tushy", "arse", "panties", "panty", "poop", "buttcheeks", "butthole"},
+    "Mild Corn": {"erotic", "escort", "hardcore", "hooker", "kinky", "kinkster", "lovemaking", "nude", "nudity", "playboy", "sex", "sexy", "swinger", "topless", "upskirt", "porn", "porno", "pornography", "smut"},
+    "moderate profane": {"shit", "shite", "shitty", "shithead", "bitch", "bitches", "bitching", "bitchy", "bastard", "asshole", "arsehole", "piss", "pissed", "pisser", "bullshit", "dipshit", "prick", "cock", "dick", "balls", "bollocks", "bugger", "twat", "wanker", "whore", "slut", "sluts", "camslut", "camwhore"},
+    "Strong profane": {"fuck", "fucking", "fucker", "fuckin", "fuckoff", "fuckyou", "motherfucker", "motherfucking", "cunt", "thundercunt", "cum", "cumshot", "cunnilingus", "fellatio", "gangbang", "orgy", "dildo"},
+    "Extreme vulgar": {"bukkake", "clusterfuck", "cumdumpster", "coprophilia", "felch", "fisting", "goatse", "rimjob", "scat", "sodomy", "squirt", "scumbag"},
+    "Sexual violence": {"rape", "raping", "rapist", "date rape", "daterape", "sodomize", "forced", "molest"},
+    "illegal content": {"childporn", "pedophile", "pedophilia", "paedophile", "lolita", "nsfw", "pthc", "bestiality", "beastiality", "zoophilia"},
+    "Racial / ethnic slurs": {"nigger", "nigga", "kike", "spic", "chink", "beaner", "coon", "coons", "darkie", "raghead", "towelhead", "wetback", "paki", "honkey", "jigaboo", "negro", "slanteye"},
+    "homophobic slurs": {"fag", "faggot", "dyke", "bulldyke", "tranny", "homo"},
+    "Disability slurs": {"retard", "retarded", "spastic", "tard", "mong"},
 }
 
 

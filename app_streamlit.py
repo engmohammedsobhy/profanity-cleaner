@@ -12,7 +12,7 @@ import streamlit.components.v1 as components
 
 import streamlit_workflows as workflows
 
-st.set_page_config(page_title="Profanity Cleaner", layout="wide", page_icon="🛡️")
+st.set_page_config(page_title="Profanity Cleaner", layout="wide", page_icon="P")
 
 st.markdown(
     """
@@ -22,10 +22,10 @@ st.markdown(
         :root {
             --bg-black: #000000;
             --card-bg: rgba(28, 28, 30, 0.55);
-            --apple-blue: #0071e3;
-            --apple-blue-hover: #0077ed;
-            --apple-blue-glow: rgba(0, 113, 227, 0.35);
-            --apple-blue-light: #2997ff;
+            --apple-red: #e50914;
+            --apple-red-hover: #ff2b36;
+            --apple-red-glow: rgba(229, 9, 20, 0.4);
+            --apple-red-light: #ff453a;
             --text-primary: #f5f5f7;
             --text-secondary: #86868b;
             --card-radius: 18px;
@@ -39,7 +39,7 @@ st.markdown(
 
         .stApp {
             background-color: #000000 !important;
-            background-image: radial-gradient(circle at 50% -10%, #1a1a26 0%, #000000 75%) !important;
+            background-image: radial-gradient(circle at 50% -10%, #261a1a 0%, #000000 75%) !important;
             color: var(--text-primary) !important;
         }
 
@@ -59,7 +59,7 @@ st.markdown(
         }
 
         [data-testid="stSidebar"] {
-            background: rgba(10, 10, 12, 0.85) !important;
+            background: rgba(12, 10, 10, 0.85) !important;
             backdrop-filter: blur(35px) !important;
             -webkit-backdrop-filter: blur(35px) !important;
             border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
@@ -93,7 +93,7 @@ st.markdown(
 
         /* Expander Collapsible Styling */
         div[data-testid="stExpander"] {
-            background: rgba(18, 18, 22, 0.6) !important;
+            background: rgba(22, 18, 18, 0.6) !important;
             border: none !important;
             border-radius: 14px !important;
             margin-top: 0.6rem !important;
@@ -107,7 +107,7 @@ st.markdown(
         }
 
         div[data-testid="stExpander"] summary:hover {
-            color: #2997ff !important;
+            color: var(--apple-red-light) !important;
         }
 
         /* Apple Metric Strips */
@@ -141,7 +141,7 @@ st.markdown(
             letter-spacing: -0.03em;
         }
 
-        /* Apple Pill Buttons */
+        /* Apple Red Pill Buttons */
         .stButton > button {
             border-radius: var(--pill-radius) !important;
             font-weight: 600 !important;
@@ -149,16 +149,16 @@ st.markdown(
             padding: 0.65rem 1.5rem !important;
             transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
             border: none !important;
-            background: var(--apple-blue) !important;
+            background: var(--apple-red) !important;
             color: #ffffff !important;
             letter-spacing: -0.01em !important;
-            box-shadow: 0 4px 16px var(--apple-blue-glow) !important;
+            box-shadow: 0 4px 16px var(--apple-red-glow) !important;
         }
 
         .stButton > button:hover {
-            background: var(--apple-blue-hover) !important;
+            background: var(--apple-red-hover) !important;
             color: #ffffff !important;
-            box-shadow: 0 6px 22px rgba(0, 113, 227, 0.5) !important;
+            box-shadow: 0 6px 22px rgba(229, 9, 20, 0.55) !important;
             transform: scale(1.015) !important;
         }
 
@@ -196,9 +196,9 @@ st.markdown(
         }
 
         .stDownloadButton > button:hover {
-            background: rgba(0, 113, 227, 0.15) !important;
+            background: rgba(229, 9, 20, 0.18) !important;
             color: #ffffff !important;
-            box-shadow: 0 4px 14px var(--apple-blue-glow) !important;
+            box-shadow: 0 4px 14px var(--apple-red-glow) !important;
         }
 
         textarea, input, select, div[data-baseweb="select"] > div {
@@ -211,8 +211,8 @@ st.markdown(
         }
 
         textarea:focus, input:focus, select:focus, div[data-baseweb="select"]:focus-within {
-            border-color: var(--apple-blue) !important;
-            box-shadow: 0 0 0 3px var(--apple-blue-glow) !important;
+            border-color: var(--apple-red) !important;
+            box-shadow: 0 0 0 3px var(--apple-red-glow) !important;
             outline: none !important;
         }
 
@@ -220,27 +220,27 @@ st.markdown(
             color: #6e6e73 !important;
         }
 
-        /* High Contrast Streamlit Accent Overrides */
+        /* High Contrast Streamlit Red Accent Overrides */
         [data-baseweb="slider"] div[role="slider"] {
-            background-color: var(--apple-blue) !important;
+            background-color: var(--apple-red) !important;
             border: 2px solid #ffffff !important;
         }
 
         [data-baseweb="slider"] div[data-testid="stSliderTickBar"] + div {
-            background-color: var(--apple-blue) !important;
+            background-color: var(--apple-red) !important;
         }
 
         div[data-baseweb="checkbox"] input:checked + div {
-            background-color: var(--apple-blue) !important;
-            border-color: var(--apple-blue) !important;
+            background-color: var(--apple-red) !important;
+            border-color: var(--apple-red) !important;
         }
 
         div[data-baseweb="radio"] input:checked + div {
-            border-color: var(--apple-blue) !important;
+            border-color: var(--apple-red) !important;
         }
 
         div[data-baseweb="radio"] input:checked + div > div {
-            background-color: var(--apple-blue) !important;
+            background-color: var(--apple-red) !important;
         }
 
         button[data-baseweb="tab"] {
@@ -252,26 +252,16 @@ st.markdown(
 
         button[data-baseweb="tab"][aria-selected="true"] {
             color: #ffffff !important;
-            background: rgba(0, 113, 227, 0.2) !important;
+            background: rgba(229, 9, 20, 0.2) !important;
         }
 
         div[data-baseweb="tab-highlight"] {
-            background-color: var(--apple-blue) !important;
+            background-color: var(--apple-red) !important;
         }
 
         div[data-testid="stProgress"] > div > div > div {
-            background-color: var(--apple-blue) !important;
-            background-image: linear-gradient(90deg, #0071e3, #2997ff) !important;
-        }
-
-        /* Code Log Output */
-        pre {
-            background: rgba(10, 10, 12, 0.95) !important;
-            border: 1px solid rgba(255, 255, 255, 0.08) !important;
-            border-radius: 12px !important;
-            padding: 0.9rem !important;
-            font-family: -apple-system, BlinkMacSystemFont, "SF Mono", monospace !important;
-            font-size: 0.8rem !important;
+            background-color: var(--apple-red) !important;
+            background-image: linear-gradient(90deg, #e50914, #ff453a) !important;
         }
     </style>
     """,
@@ -293,9 +283,8 @@ def init_state() -> None:
 
 
 class StreamlitStatus:
-    def __init__(self, progress_slot: Any, log_slot: Any, state_key: str):
+    def __init__(self, progress_slot: Any, state_key: str):
         self.progress_slot = progress_slot
-        self.log_slot = log_slot
         self.state_key = state_key
         st.session_state[self.state_key] = []
 
@@ -306,7 +295,6 @@ class StreamlitStatus:
             return
         text = str(message)
         st.session_state[self.state_key].append(text)
-        self.log_slot.code("\n".join(st.session_state[self.state_key][-18:]) or "Ready")
 
 
 def file_bytes(path: str) -> bytes:
@@ -361,7 +349,7 @@ def render_home_page() -> None:
             st.markdown("""
             - **Speech-to-Text Transcription**: Powered by OpenAI Whisper models.
             - **Timestamp Muting & Audio Bleeping**: Mute or overlay custom censor audio seamlessly.
-            - **Rating Presets**: Instant filtering for Default, PG-13, R, and NC-17 standards.
+            - **Multi-Category Rules**: Granular control over 13 distinct profanity categories.
             - **Subtitles & Export Logs**: Generate raw/clean `.srt`, `.txt`, and `.json` logs.
             """)
     with col2:
@@ -452,16 +440,16 @@ def render_media_result(result: Dict[str, Any]) -> None:
 def render_category_selector(key_prefix: str) -> List[str]:
     st.markdown("<div class='section-label'>Word Categories to Censor</div>", unsafe_allow_html=True)
     cat_keys = list(workflows.WORD_CATEGORIES.keys())
-    col1, col2 = st.columns(2)
+    cols = st.columns(4)
     selected = []
     for idx, cat_name in enumerate(cat_keys):
-        col = col1 if idx % 2 == 0 else col2
+        col = cols[idx % 4]
         with col:
             is_checked = st.checkbox(
                 cat_name,
                 value=True,
                 key=f"{key_prefix}_cat_{idx}",
-                help=f"Words included in {cat_name}: {', '.join(list(workflows.WORD_CATEGORIES[cat_name])[:5])}...",
+                help=f"Words included in {cat_name}: {', '.join(list(workflows.WORD_CATEGORIES[cat_name])[:4])}...",
             )
             if is_checked:
                 selected.append(cat_name)
@@ -497,7 +485,7 @@ def render_media_tab() -> None:
                         st.audio(uploaded_media)
 
                 st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
-                process = st.button("🚀 Start Media Processing", type="primary", use_container_width=True)
+                process = st.button("Start Media Processing", type="primary", use_container_width=True)
             else:
                 st.session_state.media_result = None
                 st.session_state.active_media_key = None
@@ -508,9 +496,9 @@ def render_media_tab() -> None:
     with options_col:
         # Tabbed Option Panel for clean feature navigation
         tab_mod, tab_audio, tab_export = st.tabs([
-            "🛡️ Moderation & Rules",
-            "🔊 Audio & Censoring",
-            "📄 Exports & Output",
+            "Moderation & Rules",
+            "Audio & Censoring",
+            "Exports & Output",
         ])
 
         with tab_mod:
@@ -585,7 +573,7 @@ def render_media_tab() -> None:
                         custom_sound_path = custom_sound_paths[0] if custom_sound_paths else ""
 
             st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
-            with st.expander("⚙️ Advanced Audio & Timing Controls", expanded=False):
+            with st.expander("Advanced Audio & Timing Controls", expanded=False):
                 overlap_censor = False
                 marked_audio_volume = 100.0
 
@@ -630,8 +618,7 @@ def render_media_tab() -> None:
 
     if process and uploaded_media:
         progress_slot = st.progress(0)
-        log_slot = st.empty()
-        status = StreamlitStatus(progress_slot, log_slot, "media_logs")
+        status = StreamlitStatus(progress_slot, "media_logs")
         try:
             file_path = workflows.save_uploaded_file(uploaded_media, "profanity_cleaner_media")
             options = {
@@ -742,15 +729,15 @@ def render_text_tab() -> None:
 
             st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
             can_process = bool(raw_text.strip())
-            process = st.button("🚀 Start Text Processing", type="primary", use_container_width=True, disabled=not can_process)
+            process = st.button("Start Text Processing", type="primary", use_container_width=True, disabled=not can_process)
 
         render_mascot("text")
 
     with options_col:
         tab_mod, tab_rules, tab_norm = st.tabs([
-            "🛡️ Moderation & Rules",
-            "⚙️ Replacement Style",
-            "🧹 Normalization",
+            "Moderation & Rules",
+            "Replacement Style",
+            "Normalization",
         ])
 
         with tab_mod:
@@ -805,8 +792,7 @@ def render_text_tab() -> None:
             st.error("Custom censor string cannot be empty.")
             return
         progress_slot = st.progress(0)
-        log_slot = st.empty()
-        status = StreamlitStatus(progress_slot, log_slot, "text_logs")
+        status = StreamlitStatus(progress_slot, "text_logs")
         try:
             with st.spinner("Processing text..."):
                 st.session_state.text_result = workflows.process_text_content(raw_text, options, uploaded_path, status)

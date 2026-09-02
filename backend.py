@@ -517,8 +517,6 @@ def transcribe_audio(audio_path: str, progress_callback: Any) -> Dict[str, Any]:
         raise Exception(f"ASR Model ('{ASR_MODEL_KEY_CURRENT}') not loaded. This shouldn't happen.")
 
     progress_callback.emit("Starting audio transcription...")
-        
-    progress_callback.emit("Starting audio transcription ( This may take time, maybe you should read a book lol )")
 
     import warnings
     warnings.filterwarnings("ignore", message="FP16 is not supported on CPU; using FP32 instead")
