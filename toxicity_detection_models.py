@@ -394,7 +394,7 @@ def transcribe_media(media_path):
     return result["text"].strip()
 
 
-def analyze_text_toxicity(text, threshold=0.70):
+def analyze_text_toxicity(text, threshold=0.50):
     if not text:
         return {
             "text": "",
@@ -427,6 +427,6 @@ def analyze_text_toxicity(text, threshold=0.70):
     }
 
 
-def analyze_media_toxicity(media_path, threshold=0.70):
+def analyze_media_toxicity(media_path, threshold=0.50):
     extracted_text = transcribe_media(media_path)
     return analyze_text_toxicity(extracted_text, threshold=threshold)
