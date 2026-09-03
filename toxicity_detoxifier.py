@@ -2,6 +2,7 @@ import os
 import re
 import string
 import numpy as np
+os.environ["TF_USE_LEGACY_KERAS"] = "1"
 try:
     import streamlit as st
 except ImportError:
@@ -62,6 +63,11 @@ model = None
 
 def _load_keras_file(target_path):
     import tensorflow as tf
+    try:
+        import tf_keras as keras
+    except ImportError:
+        import tensorflow.keras as keras
+
     import zipfile
     import json
     import tempfile
@@ -71,11 +77,11 @@ def _load_keras_file(target_path):
         return tf.keras.losses.binary_crossentropy(y_true, y_pred)
 
     try:
-        @tf.keras.utils.register_keras_serializable(package="builtins", name="function")
+        @keras.utils.register_keras_serializable(package="builtins", name="function")
         def reg_func1(y_true, y_pred):
             return tf.keras.losses.binary_crossentropy(y_true, y_pred)
 
-        @tf.keras.utils.register_keras_serializable(name="function")
+        @keras.utils.register_keras_serializable(name="function")
         def reg_func2(y_true, y_pred):
             return tf.keras.losses.binary_crossentropy(y_true, y_pred)
     except Exception:
@@ -91,9 +97,12 @@ def _load_keras_file(target_path):
     }
 
     try:
-        return tf.keras.models.load_model(
-            target_path, custom_objects=custom_objs, compile=False, safe_mode=False
-        )
+        return keras.models.load_model(target_path, custom_objects=custom_objs, compile=False)
+    except Exception:
+        pass
+
+    try:
+        return tf.keras.models.load_model(target_path, custom_objects=custom_objs, compile=False)
     except Exception:
         pass
 
@@ -118,9 +127,16 @@ def _load_keras_file(target_path):
                             data = cfg_text.encode('utf-8')
                         zout.writestr(item, data)
             try:
-                loaded_model = tf.keras.models.load_model(
-                    sanitized_path, custom_objects=custom_objs, compile=False, safe_mode=False
-                )
+                loaded_model = keras.models.load_model(sanitized_path, custom_objects=custom_objs, compile=False)
+                try:
+                    shutil.copyfile(sanitized_path, target_path)
+                except Exception:
+                    pass
+                return loaded_model
+            except Exception:
+                pass
+            try:
+                loaded_model = tf.keras.models.load_model(sanitized_path, custom_objects=custom_objs, compile=False)
                 try:
                     shutil.copyfile(sanitized_path, target_path)
                 except Exception:
@@ -131,9 +147,10 @@ def _load_keras_file(target_path):
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
-    return tf.keras.models.load_model(
-        target_path, custom_objects=custom_objs, compile=False, safe_mode=False
-    )
+    try:
+        return keras.models.load_model(target_path, custom_objects=custom_objs, compile=False)
+    except Exception:
+        return tf.keras.models.load_model(target_path, custom_objects=custom_objs, compile=False)
 
 def _get_model():
     global MODEL_LOAD_ERROR

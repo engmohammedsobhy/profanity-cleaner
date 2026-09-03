@@ -12,6 +12,7 @@ except ImportError:
 
 locale.getpreferredencoding = lambda do_setlocale=True: "utf-8"
 os.environ["PYTHONUTF8"] = "1"
+os.environ["TF_USE_LEGACY_KERAS"] = "1"
 
 if sys.platform == "win32":
     try:
@@ -88,6 +89,11 @@ def _load_speech_model():
 
 def _load_toxicity_model():
     import tensorflow as tf
+    try:
+        import tf_keras as keras
+    except ImportError:
+        import tensorflow.keras as keras
+
     import zipfile
     import json
     import tempfile
@@ -99,8 +105,12 @@ def _load_toxicity_model():
         return tf.keras.losses.binary_crossentropy(y_true, y_pred)
 
     try:
-        @tf.keras.utils.register_keras_serializable(name="function")
-        def reg_func(y_true, y_pred):
+        @keras.utils.register_keras_serializable(package="builtins", name="function")
+        def reg_func1(y_true, y_pred):
+            return tf.keras.losses.binary_crossentropy(y_true, y_pred)
+
+        @keras.utils.register_keras_serializable(name="function")
+        def reg_func2(y_true, y_pred):
             return tf.keras.losses.binary_crossentropy(y_true, y_pred)
     except Exception:
         pass
@@ -111,12 +121,12 @@ def _load_toxicity_model():
     }
 
     try:
-        return tf.keras.models.load_model(
-            model_path,
-            custom_objects=custom_objs,
-            compile=False,
-            safe_mode=False,
-        )
+        return keras.models.load_model(model_path, custom_objects=custom_objs, compile=False)
+    except Exception:
+        pass
+
+    try:
+        return tf.keras.models.load_model(model_path, custom_objects=custom_objs, compile=False)
     except Exception:
         pass
 
@@ -137,19 +147,35 @@ def _load_toxicity_model():
                 sanitized_path, custom_objects=custom_objs, compile=False, safe_mode=False
             )
             try:
+<<<<<<< HEAD
                 shutil.copyfile(sanitized_path, model_path)
+=======
+                loaded_model = keras.models.load_model(sanitized_path, custom_objects=custom_objs, compile=False)
+                try:
+                    shutil.copyfile(sanitized_path, model_path)
+                except Exception:
+                    pass
+                return loaded_model
+            except Exception:
+                pass
+            try:
+                loaded_model = tf.keras.models.load_model(sanitized_path, custom_objects=custom_objs, compile=False)
+                try:
+                    shutil.copyfile(sanitized_path, model_path)
+                except Exception:
+                    pass
+                return loaded_model
+>>>>>>> 0f863cd (Update requirements to tf-keras 2.16.0 and set TF_USE_LEGACY_KERAS=1 for Keras 2 compatibility)
             except Exception:
                 pass
             return loaded_model
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
-    return tf.keras.models.load_model(
-        model_path,
-        custom_objects=custom_objs,
-        compile=False,
-        safe_mode=False,
-    )
+    try:
+        return keras.models.load_model(model_path, custom_objects=custom_objs, compile=False)
+    except Exception:
+        return tf.keras.models.load_model(model_path, custom_objects=custom_objs, compile=False)
 
 
 def _load_categories():
