@@ -1,7 +1,6 @@
 import os
 import re
 import string
-import urllib.request
 import numpy as np
 try:
     import streamlit as st
@@ -53,12 +52,13 @@ def advanced_clean_text(text: str) -> str:
         words = [w for w in text.split() if w not in custom_stopwords]
     return " ".join(words)
 
+
 CATEGORIES = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(CURRENT_DIR, "toxicity_model.keras")
-MODEL_URL = "https://github.com/engmohammedsobhy/profanity-cleaner/releases/download/v1.0.0/toxicity_model.keras"
+MODEL_PATH = os.path.join(CURRENT_DIR, "toxicity_detection_model.keras")
 
 MODEL_LOAD_ERROR = None
+model = None
 
 def _load_keras_file(target_path):
     import tensorflow as tf
@@ -119,6 +119,7 @@ def _load_keras_file(target_path):
 
 def _get_model():
     global MODEL_LOAD_ERROR
+
     try:
         import tensorflow as tf
     except ImportError:
@@ -126,32 +127,35 @@ def _get_model():
         return None
 
     try:
-        path_to_load = MODEL_PATH
-        if not os.path.exists(path_to_load):
-            alt_path = os.path.join(CURRENT_DIR, "toxicity_detection_model.keras")
-            if os.path.exists(alt_path):
-                path_to_load = alt_path
-            else:
-                urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+        if not os.path.exists(MODEL_PATH):
+            MODEL_LOAD_ERROR = f"Model file not found at: {MODEL_PATH}"
+            return None
 
-        return _load_keras_file(path_to_load)
+        return _load_keras_file(MODEL_PATH)
+
     except Exception as e:
         MODEL_LOAD_ERROR = str(e)
         return None
+
 
 if st is not None:
     @st.cache_resource
     def load_cached_detox_model():
         return _get_model()
+
     get_model = load_cached_detox_model
 else:
     _loaded_model = None
+
     def get_model():
         global _loaded_model
+
         if _loaded_model is None:
             _loaded_model = _get_model()
+
         return _loaded_model
 
+    
 DETOX_SYSTEM_PROMPT = """
 You are a direct text rephraser.
 Transform rude or toxic comments into polite, constructive alternatives while preserving the intent.

@@ -29,11 +29,13 @@ if not os.path.exists(MODEL_PATH):
 
 CATEGORIES_PATH = os.path.join(BASE_DIR, "categories.pkl")
 
+
 def _load_speech_model():
     import whisper
     from unittest.mock import patch
     with patch("whisper.tqdm"):
         return whisper.load_model("base")
+
 
 def _load_toxicity_model():
     import tensorflow as tf
@@ -104,10 +106,12 @@ def _load_toxicity_model():
         safe_mode=False,
     )
 
+
 def _load_categories():
     if not os.path.exists(CATEGORIES_PATH):
         return ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
     return joblib.load(CATEGORIES_PATH)
+
 
 if st is not None:
     @st.cache_resource
@@ -121,6 +125,9 @@ if st is not None:
     @st.cache_resource
     def get_categories():
         return _load_categories()
+
+    load_speech_model = get_speech_model
+    load_toxicity_model = get_toxicity_model
 else:
     _speech_m = None
     _tox_m = None
@@ -144,10 +151,15 @@ else:
             _cats = _load_categories()
         return _cats
 
+    load_speech_model = get_speech_model
+    load_toxicity_model = get_toxicity_model
+
+
 def transcribe_media(media_path):
     speech_model = get_speech_model()
     result = speech_model.transcribe(media_path)
     return result["text"].strip()
+
 
 def analyze_text_toxicity(text, threshold=0.70):
     if not text:
@@ -182,6 +194,7 @@ def analyze_text_toxicity(text, threshold=0.70):
         "violations": violations,
         "is_safe": len(violations) == 0,
     }
+
 
 def analyze_media_toxicity(media_path, threshold=0.70):
     extracted_text = transcribe_media(media_path)
