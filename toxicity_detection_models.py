@@ -27,11 +27,13 @@ CATEGORIES_PATH = os.path.join(BASE_DIR, "categories.pkl")
 def _ensure_model_path():
     import zipfile
     import urllib.request
+    import tempfile
 
     primary_path = os.path.join(BASE_DIR, "toxicity_detection_model.keras")
     alt_path = os.path.join(BASE_DIR, "toxicity_model.keras")
+    tmp_path = os.path.join(tempfile.gettempdir(), "toxicity_model.keras")
 
-    for path in (primary_path, alt_path):
+    for path in (primary_path, alt_path, tmp_path):
         if os.path.exists(path):
             try:
                 if os.path.getsize(path) > 1_000_000 and zipfile.is_zipfile(path):
@@ -41,6 +43,15 @@ def _ensure_model_path():
 
     try:
         urllib.request.urlretrieve(MODEL_URL, primary_path)
+        if os.path.exists(primary_path) and os.path.getsize(primary_path) > 1_000_000 and zipfile.is_zipfile(primary_path):
+            return primary_path
+    except Exception:
+        pass
+
+    try:
+        urllib.request.urlretrieve(MODEL_URL, tmp_path)
+        if os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 1_000_000 and zipfile.is_zipfile(tmp_path):
+            return tmp_path
     except Exception as e:
         raise FileNotFoundError(f"Failed to download model from {MODEL_URL}: {e}")
 
