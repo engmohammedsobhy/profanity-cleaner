@@ -412,7 +412,7 @@ def render_home_page() -> None:
                     margin-bottom: 1.2rem; 
                     backdrop-filter: blur(25px);
                     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);">
-            <div class="home-badge">🚀 Content Moderation Engine v2.0</div>
+            <div class="home-badge">Content Moderation Engine v2.0</div>
             <h2 style="color: #ffffff; font-size: 1.85rem; font-weight: 700; margin: 0.2rem 0 0.5rem 0; letter-spacing: -0.02em;">
                 Next-Gen Moderation & Generative AI Detoxification
             </h2>
@@ -431,20 +431,20 @@ def render_home_page() -> None:
             """
             <div class="home-card">
                 <div class="home-badge">Deep Learning AI</div>
-                <div class="home-card-title">🛡️ Toxicity Detection</div>
+                <div class="home-card-title">Toxicity Detection</div>
                 <div class="home-card-desc">
                     Multi-label neural network classification quantifying toxicity across 6 risk dimensions with real-time score breakdown.
                 </div>
-                <div class="home-feature-item">⚡ <b>6 Categories</b>: Toxic, Severe Toxic, Obscene, Threat, Insult, Identity Hate.</div>
-                <div class="home-feature-item">⚙️ <b>Sensitivity Slider</b>: Custom probability threshold filtering.</div>
-                <div class="home-feature-item">🎙️ <b>Multi-Modal Input</b>: Text and Media Transcription.</div>
+                <div class="home-feature-item"><b>6 Categories</b>: Toxic, Severe Toxic, Obscene, Threat, Insult, Identity Hate.</div>
+                <div class="home-feature-item"><b>Sensitivity Slider</b>: Custom probability threshold filtering.</div>
+                <div class="home-feature-item"><b>Multi-Modal Input</b>: Text and Media Transcription.</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
         st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
         st.button(
-            "Launch Toxicity Detection ➔",
+            "Launch Toxicity Detection",
             key="home_btn_tox",
             use_container_width=True,
             type="primary",
@@ -458,20 +458,20 @@ def render_home_page() -> None:
             """
             <div class="home-card">
                 <div class="home-badge">Speech & Audio Engine</div>
-                <div class="home-card-title">🎬 Media Moderation</div>
+                <div class="home-card-title">Media Moderation</div>
                 <div class="home-card-desc">
                     Frame-accurate audio bleeping, timestamped speech muting, and automated subtitle export for videos and recordings.
                 </div>
-                <div class="home-feature-item">🎙️ <b>Whisper ASR</b>: High-precision speech-to-text transcription.</div>
-                <div class="home-feature-item">🔊 <b>Censor Audio</b>: Mute audio intervals or overlay custom bleep sound.</div>
-                <div class="home-feature-item">📄 <b>Export Subtitles</b>: Generate raw & clean .SRT & JSON logs.</div>
+                <div class="home-feature-item"><b>Whisper ASR</b>: High-precision speech-to-text transcription.</div>
+                <div class="home-feature-item"><b>Censor Audio</b>: Mute audio intervals or overlay custom bleep sound.</div>
+                <div class="home-feature-item"><b>Export Subtitles</b>: Generate raw & clean .SRT & JSON logs.</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
         st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
         st.button(
-            "Launch Media Moderation ➔",
+            "Launch Media Moderation",
             key="home_btn_media",
             use_container_width=True,
             type="primary",
@@ -484,20 +484,20 @@ def render_home_page() -> None:
             """
             <div class="home-card">
                 <div class="home-badge">LLM Generative AI</div>
-                <div class="home-card-title">✨ Toxicity Detoxifier</div>
+                <div class="home-card-title">Toxicity Detoxifier</div>
                 <div class="home-card-desc">
                     Intelligent text rephrasing engine that automatically converts toxic or aggressive text into polite, professional communication.
                 </div>
-                <div class="home-feature-item">🤖 <b>Context Rewriting</b>: Preserves sentence meaning without hostility.</div>
-                <div class="home-feature-item">🔍 <b>Diff Highlighting</b>: Visual side-by-side comparison.</div>
-                <div class="home-feature-item">🛡️ <b>Smart Bypassing</b>: Leaves non-toxic text completely untouched.</div>
+                <div class="home-feature-item"><b>Context Rewriting</b>: Preserves sentence meaning without hostility.</div>
+                <div class="home-feature-item"><b>Diff Highlighting</b>: Visual side-by-side comparison.</div>
+                <div class="home-feature-item"><b>Smart Bypassing</b>: Leaves non-toxic text completely untouched.</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
         st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
         st.button(
-            "Launch Toxicity Detoxifier ➔",
+            "Launch Toxicity Detoxifier",
             key="home_btn_detox",
             use_container_width=True,
             type="primary",
@@ -511,20 +511,20 @@ def render_home_page() -> None:
             """
             <div class="home-card">
                 <div class="home-badge">Linguistics & Dictionary</div>
-                <div class="home-card-title">📝 Text NLP Moderation</div>
+                <div class="home-card-title">Text NLP Moderation</div>
                 <div class="home-card-desc">
                     Rule-based text sanitization with obfuscation detection (leet speak, unicode tricks) and custom word override lists.
                 </div>
-                <div class="home-feature-item">🔤 <b>Obfuscation Removal</b>: Unmasks hidden profanity patterns.</div>
-                <div class="home-feature-item">🎯 <b>Category Rules</b>: 13 granular profanity classes.</div>
-                <div class="home-feature-item">📊 <b>Linguistic Metrics</b>: POS tagging & profanity density analysis.</div>
+                <div class="home-feature-item"><b>Obfuscation Removal</b>: Unmasks hidden profanity patterns.</div>
+                <div class="home-feature-item"><b>Category Rules</b>: 13 granular profanity classes.</div>
+                <div class="home-feature-item"><b>Linguistic Metrics</b>: POS tagging & profanity density analysis.</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
         st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
         st.button(
-            "Launch Text NLP ➔",
+            "Launch Text NLP",
             key="home_btn_nlp",
             use_container_width=True,
             type="primary",
@@ -536,7 +536,7 @@ def render_home_page() -> None:
     st.markdown(
         """
         <div style="text-align: center; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1rem; color: #86868b; font-size: 0.82rem;">
-            <span>⚡ Powered by <b>TensorFlow 2.15 (Bi-LSTM)</b> • <b>OpenAI Whisper ASR</b> • <b>Generative LLM</b> • <b>Streamlit Cloud Engine</b></span>
+            <span>Powered by <b>TensorFlow 2.15 (Bi-LSTM)</b> • <b>OpenAI Whisper ASR</b> • <b>Generative LLM</b> • <b>Streamlit Cloud Engine</b></span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -587,7 +587,7 @@ def render_media_result(result: Dict[str, Any]) -> None:
                 download_path(path, f"Download {name.replace('_', ' ').title()}")
 
     st.markdown("<br>", unsafe_allow_html=True)
-    prev_col, logs_col = st.columns([0.45, 0.55], gap="medium")
+    prev_col, logs_col = st.columns([2, 4], gap="medium")
     is_video = False
     with prev_col:
         st.markdown("<div class='section-label'>Censored Media Preview</div>", unsafe_allow_html=True)
