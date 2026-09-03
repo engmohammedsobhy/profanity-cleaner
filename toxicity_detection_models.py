@@ -91,9 +91,11 @@ def _sanitize_config_for_keras2(obj):
     if isinstance(obj, dict):
         res = {}
         for k, v in obj.items():
-            if k in ('build_config', 'registered_name', 'shared_object_id', 'quantization_config'):
+            if k in ('build_config', 'registered_name', 'shared_object_id', 'quantization_config', 'optional', 'zero_output_for_mask', 'vocabulary_size', 'encoding'):
                 continue
-            if k == 'dtype' and isinstance(v, dict):
+            if k == 'batch_shape':
+                res['batch_input_shape'] = _sanitize_config_for_keras2(v)
+            elif k == 'dtype' and isinstance(v, dict):
                 res[k] = 'float32'
             elif k == 'class_name' and v == 'function':
                 res[k] = 'weighted_binary_crossentropy'
