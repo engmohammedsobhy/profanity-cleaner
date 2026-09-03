@@ -7,10 +7,13 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List
 
+import detoxifier_page
+import stream_toxicity_detection
 import streamlit as st
 import streamlit.components.v1 as components
 
 import streamlit_workflows as workflows
+
 
 st.set_page_config(page_title="Profanity Cleaner", layout="wide", page_icon="P")
 
@@ -906,7 +909,8 @@ def main() -> None:
         st.button("Home", use_container_width=True, type="primary" if st.session_state.current_page == "Home" else "secondary", on_click=set_page, args=("Home",))
         st.button("Media Moderation", use_container_width=True, type="primary" if st.session_state.current_page == "Media Moderation" else "secondary", on_click=set_page, args=("Media Moderation",))
         st.button("Text NLP Moderation", use_container_width=True, type="primary" if st.session_state.current_page == "Text NLP" else "secondary", on_click=set_page, args=("Text NLP",))
-        
+        st.button("Toxicity Detoxifier", use_container_width=True, type="primary" if st.session_state.current_page == "Toxicity Detoxifier" else "secondary", on_click=set_page, args=("Toxicity Detoxifier",))
+        st.button("Toxicity Detection", use_container_width=True, type="primary" if st.session_state.current_page == "Toxicity Detection" else "secondary", on_click=set_page, args=("Toxicity Detection",))
     page = st.session_state.current_page
         
     render_header()
@@ -917,6 +921,10 @@ def main() -> None:
         render_media_tab()
     elif page == "Text NLP":
         render_text_tab()
+    elif page == "Toxicity Detoxifier":
+        detoxifier_page.render_toxicity_tab()
+    elif page == "Toxicity Detection":
+        stream_toxicity_detection.render_toxicity_page()
 
 
 if __name__ == "__main__":

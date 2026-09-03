@@ -1,11 +1,12 @@
 import os
 import re
 import string
+import urllib.request
 import numpy as np
 try:
-    import tensorflow as tf
+    import streamlit as st
 except ImportError:
-    tf = None
+    st = None
 
 try:
     from groq import Groq
@@ -46,18 +47,52 @@ def advanced_clean_text(text: str) -> str:
     text = re.sub(r'https?://\S+|www\.\S+|<.*?>+', '', text)
     text = text.translate(str.maketrans('', '', string.punctuation))
     text = re.sub(r'\d+', '', text)
-    words = [lemmatizer.lemmatize(w) for w in text.split() if w not in custom_stopwords]
+    if lemmatizer:
+        words = [lemmatizer.lemmatize(w) for w in text.split() if w not in custom_stopwords]
+    else:
+        words = [w for w in text.split() if w not in custom_stopwords]
     return " ".join(words)
 
 CATEGORIES = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(CURRENT_DIR, "toxicity_model.keras")
+MODEL_URL = "https://github.com/engmohammedsobhy/profanity-cleaner/releases/download/v1.0.0/toxicity_model.keras"
 
-try:
-    model = tf.keras.models.load_model(MODEL_PATH) if tf is not None else None
-except Exception as e:
-    model = None
-    print(f"Warning: Could not load toxicity model from {MODEL_PATH}: {e}")
+MODEL_LOAD_ERROR = None
+
+def _get_model():
+    global MODEL_LOAD_ERROR
+    try:
+        import tensorflow as tf
+    except ImportError:
+        MODEL_LOAD_ERROR = "TensorFlow is not installed."
+        return None
+
+    try:
+        if not os.path.exists(MODEL_PATH):
+            # Check local file toxicity_detection_model.keras as fallback
+            alt_path = os.path.join(CURRENT_DIR, "toxicity_detection_model.keras")
+            if os.path.exists(alt_path):
+                return tf.keras.models.load_model(alt_path, compile=False)
+            urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+
+        return tf.keras.models.load_model(MODEL_PATH, compile=False)
+    except Exception as e:
+        MODEL_LOAD_ERROR = str(e)
+        return None
+
+if st is not None:
+    @st.cache_resource
+    def load_cached_detox_model():
+        return _get_model()
+    get_model = load_cached_detox_model
+else:
+    _loaded_model = None
+    def get_model():
+        global _loaded_model
+        if _loaded_model is None:
+            _loaded_model = _get_model()
+        return _loaded_model
 
 DETOX_SYSTEM_PROMPT = """
 You are a direct text rephraser.
@@ -85,6 +120,7 @@ def end_to_end_detoxifier(raw_text: str, threshold: float = 0.60) -> dict:
     cleaned_input = advanced_clean_text(raw_text)
     input_array = np.array([cleaned_input], dtype=object)
 
+    model = get_model()
     if model is not None:
         probabilities = model.predict(input_array, verbose=0)[0]
         max_score = float(np.max(probabilities))
@@ -92,6 +128,7 @@ def end_to_end_detoxifier(raw_text: str, threshold: float = 0.60) -> dict:
         category_scores = {
             cat: float(prob) for cat, prob in zip(CATEGORIES, probabilities)
         }
+
     else:
         max_score = 0.0
         top_category = "UNKNOWN"
