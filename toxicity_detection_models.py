@@ -21,13 +21,30 @@ if sys.platform == "win32":
         pass
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "toxicity_detection_model.keras")
-if not os.path.exists(MODEL_PATH):
-    alt_model_path = os.path.join(BASE_DIR, "toxicity_model.keras")
-    if os.path.exists(alt_model_path):
-        MODEL_PATH = alt_model_path
-
+MODEL_URL = "https://github.com/engmohammedsobhy/profanity-cleaner/releases/download/v1.0.0/toxicity_model.keras"
 CATEGORIES_PATH = os.path.join(BASE_DIR, "categories.pkl")
+
+def _ensure_model_path():
+    import zipfile
+    import urllib.request
+
+    primary_path = os.path.join(BASE_DIR, "toxicity_detection_model.keras")
+    alt_path = os.path.join(BASE_DIR, "toxicity_model.keras")
+
+    for path in (primary_path, alt_path):
+        if os.path.exists(path):
+            try:
+                if os.path.getsize(path) > 1_000_000 and zipfile.is_zipfile(path):
+                    return path
+            except Exception:
+                pass
+
+    try:
+        urllib.request.urlretrieve(MODEL_URL, primary_path)
+    except Exception as e:
+        raise FileNotFoundError(f"Failed to download model from {MODEL_URL}: {e}")
+
+    return primary_path
 
 
 def _load_speech_model():
@@ -44,11 +61,7 @@ def _load_toxicity_model():
     import tempfile
     import shutil
 
-    if not os.path.exists(MODEL_PATH):
-        raise FileNotFoundError(
-            f"Toxicity model not found at: {MODEL_PATH}\n"
-            f"Make sure 'toxicity_detection_model.keras' is placed in project root."
-        )
+    model_path = _ensure_model_path()
 
     def weighted_binary_crossentropy(y_true, y_pred):
         return tf.keras.losses.binary_crossentropy(y_true, y_pred)
@@ -67,7 +80,7 @@ def _load_toxicity_model():
 
     try:
         return tf.keras.models.load_model(
-            MODEL_PATH,
+            model_path,
             custom_objects=custom_objs,
             compile=False,
             safe_mode=False,
@@ -75,11 +88,11 @@ def _load_toxicity_model():
     except Exception:
         pass
 
-    if zipfile.is_zipfile(MODEL_PATH):
+    if zipfile.is_zipfile(model_path):
         temp_dir = tempfile.mkdtemp()
         try:
             sanitized_path = os.path.join(temp_dir, "sanitized_model.keras")
-            with zipfile.ZipFile(MODEL_PATH, 'r') as zin:
+            with zipfile.ZipFile(model_path, 'r') as zin:
                 with zipfile.ZipFile(sanitized_path, 'w') as zout:
                     for item in zin.infolist():
                         data = zin.read(item.filename)
@@ -92,7 +105,7 @@ def _load_toxicity_model():
                 sanitized_path, custom_objects=custom_objs, compile=False, safe_mode=False
             )
             try:
-                shutil.copyfile(sanitized_path, MODEL_PATH)
+                shutil.copyfile(sanitized_path, model_path)
             except Exception:
                 pass
             return loaded_model
@@ -100,7 +113,7 @@ def _load_toxicity_model():
             shutil.rmtree(temp_dir, ignore_errors=True)
 
     return tf.keras.models.load_model(
-        MODEL_PATH,
+        model_path,
         custom_objects=custom_objs,
         compile=False,
         safe_mode=False,

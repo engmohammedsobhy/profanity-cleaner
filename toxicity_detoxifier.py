@@ -121,35 +121,12 @@ def _get_model():
     global MODEL_LOAD_ERROR
 
     try:
-        from toxicity_detection_models import get_toxicity_model
+        from toxicity_detection_models import get_toxicity_model, _ensure_model_path
         m = get_toxicity_model()
         if m is not None:
             return m
-    except Exception:
-        pass
-
-    try:
-        import tensorflow as tf
-    except ImportError:
-        MODEL_LOAD_ERROR = "TensorFlow is not installed."
-        return None
-
-    try:
-        path_to_load = MODEL_PATH
-        if not os.path.exists(path_to_load):
-            alt_path = os.path.join(CURRENT_DIR, "toxicity_model.keras")
-            if os.path.exists(alt_path):
-                path_to_load = alt_path
-            else:
-                try:
-                    import urllib.request
-                    urllib.request.urlretrieve("https://github.com/engmohammedsobhy/profanity-cleaner/releases/download/v1.0.0/toxicity_model.keras", path_to_load)
-                except Exception as dl_err:
-                    MODEL_LOAD_ERROR = f"Model file not found and download failed: {dl_err}"
-                    return None
-
+        path_to_load = _ensure_model_path()
         return _load_keras_file(path_to_load)
-
     except Exception as e:
         MODEL_LOAD_ERROR = str(e)
         return None
