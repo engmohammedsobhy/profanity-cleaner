@@ -195,6 +195,8 @@ def _get_model():
         return _load_keras_file(path_to_load)
     except Exception as e:
         MODEL_LOAD_ERROR = str(e)
+        if st is not None:
+            st.error(f"Unredacted Detoxifier Load Error: {e}")
         return None
 
 

@@ -226,10 +226,15 @@ if st is not None:
 
     @st.cache_resource
     def get_toxicity_model():
-        m = _load_toxicity_model()
-        if m is None:
-            raise RuntimeError("Toxicity model loading returned None")
-        return m
+        try:
+            m = _load_toxicity_model()
+            if m is None:
+                raise RuntimeError("Toxicity model loading returned None")
+            return m
+        except Exception as e:
+            if st is not None:
+                st.error(f"Unredacted Model Load Error: {e}")
+            raise e
 
     @st.cache_resource
     def get_categories():
