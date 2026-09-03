@@ -143,13 +143,7 @@ def _load_toxicity_model():
                             cfg['compile_config'] = None
                             data = json.dumps(cfg).encode('utf-8')
                         zout.writestr(item, data)
-            loaded_model = tf.keras.models.load_model(
-                sanitized_path, custom_objects=custom_objs, compile=False, safe_mode=False
-            )
             try:
-<<<<<<< HEAD
-                shutil.copyfile(sanitized_path, model_path)
-=======
                 loaded_model = keras.models.load_model(sanitized_path, custom_objects=custom_objs, compile=False)
                 try:
                     shutil.copyfile(sanitized_path, model_path)
@@ -165,10 +159,8 @@ def _load_toxicity_model():
                 except Exception:
                     pass
                 return loaded_model
->>>>>>> 0f863cd (Update requirements to tf-keras 2.16.0 and set TF_USE_LEGACY_KERAS=1 for Keras 2 compatibility)
             except Exception:
                 pass
-            return loaded_model
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
