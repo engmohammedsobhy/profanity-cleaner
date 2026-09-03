@@ -338,25 +338,40 @@ else:
 
 _VOCAB_MAP = None
 
-def _get_vocab_map():
+def _get_vocab_map(model=None):
     global _VOCAB_MAP
-    if _VOCAB_MAP is not None:
+    if _VOCAB_MAP is not None and len(_VOCAB_MAP) > 0:
         return _VOCAB_MAP
+
     vocab_path = os.path.join(BASE_DIR, "vocab.json")
     if os.path.exists(vocab_path):
         try:
             import json
             with open(vocab_path, "r", encoding="utf-8") as f:
                 vocab_list = json.load(f)
-                _VOCAB_MAP = {w: i for i, w in enumerate(vocab_list)}
-                return _VOCAB_MAP
-        except Exception:
-            pass
+                _VOCAB_MAP = {str(w): i for i, w in enumerate(vocab_list)}
+                if len(_VOCAB_MAP) > 0:
+                    return _VOCAB_MAP
+        except Exception as e:
+            print(f"[Vocab] Error loading vocab.json: {e}")
+
+    if model is not None:
+        try:
+            for layer in model.layers:
+                if hasattr(layer, "get_vocabulary"):
+                    vocab_list = layer.get_vocabulary()
+                    if vocab_list and len(vocab_list) > 1:
+                        clean_vocab = [str(w.decode('utf-8') if isinstance(w, bytes) else w) for w in vocab_list]
+                        _VOCAB_MAP = {w: i for i, w in enumerate(clean_vocab)}
+                        return _VOCAB_MAP
+        except Exception as err:
+            print(f"[Vocab] Error extracting vocab from model: {err}")
+
     return {}
 
 
-def text_to_sequence(text, max_len=150):
-    vocab_map = _get_vocab_map()
+def text_to_sequence(text, model=None, max_len=150):
+    vocab_map = _get_vocab_map(model=model)
     import re
     clean_text = re.sub(r'[^\w\s]', '', str(text).lower())
     words = clean_text.split()
@@ -367,18 +382,19 @@ def text_to_sequence(text, max_len=150):
 
 
 def predict_toxicity_probabilities(model, text):
-    vocab_map = _get_vocab_map()
+    vocab_map = _get_vocab_map(model=model)
     if vocab_map:
         try:
-            seq = text_to_sequence(text)
+            seq = text_to_sequence(text, model=model)
             if hasattr(model, "layers") and len(model.layers) > 1 and ("vector" in getattr(model.layers[0], "name", "").lower() or hasattr(model.layers[0], "get_vocabulary")):
-                import tensorflow as tf
-                sub_model = tf.keras.Sequential(model.layers[1:])
-                return sub_model(seq, training=False).numpy()[0]
+                x = seq
+                for layer in model.layers[1:]:
+                    x = layer(x, training=False)
+                return x.numpy()[0]
             else:
                 return model(seq, training=False).numpy()[0]
         except Exception as e:
-            print(f"[Predict Fallback] Decoupled vectorizer evaluation failed: {e}")
+            print(f"[Predict Fallback] Decoupled layer evaluation failed: {e}")
 
     import tensorflow as tf
     input_text = tf.constant([str(text)])
