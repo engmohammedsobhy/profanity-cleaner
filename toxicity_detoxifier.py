@@ -61,6 +61,25 @@ MODEL_PATH = os.path.join(CURRENT_DIR, "toxicity_detection_model.keras")
 MODEL_LOAD_ERROR = None
 model = None
 
+def _sanitize_config_for_keras2(obj):
+    if isinstance(obj, dict):
+        res = {}
+        for k, v in obj.items():
+            if k in ('build_config', 'registered_name', 'shared_object_id', 'quantization_config'):
+                continue
+            if k == 'dtype' and isinstance(v, dict):
+                res[k] = 'float32'
+            elif k == 'class_name' and v == 'function':
+                res[k] = 'weighted_binary_crossentropy'
+            elif k == 'module' and v == 'builtins':
+                res[k] = 'keras.losses'
+            else:
+                res[k] = _sanitize_config_for_keras2(v)
+        return res
+    elif isinstance(obj, list):
+        return [_sanitize_config_for_keras2(item) for item in obj]
+    return obj
+
 def _load_keras_file(target_path):
     import tensorflow as tf
     try:
@@ -115,16 +134,13 @@ def _load_keras_file(target_path):
                     for item in zin.infolist():
                         data = zin.read(item.filename)
                         if item.filename == 'config.json':
-                            cfg_text = data.decode('utf-8')
                             try:
-                                cfg = json.loads(cfg_text)
+                                cfg = json.loads(data.decode('utf-8'))
                                 cfg['compile_config'] = None
-                                cfg_text = json.dumps(cfg)
+                                clean_cfg = _sanitize_config_for_keras2(cfg)
+                                data = json.dumps(clean_cfg).encode('utf-8')
                             except Exception:
                                 pass
-                            cfg_text = cfg_text.replace('"class_name": "function"', '"class_name": "weighted_binary_crossentropy"')
-                            cfg_text = cfg_text.replace('"module": "builtins"', '"module": "keras.losses"')
-                            data = cfg_text.encode('utf-8')
                         zout.writestr(item, data)
             try:
                 loaded_model = keras.models.load_model(sanitized_path, custom_objects=custom_objs, compile=False)

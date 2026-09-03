@@ -130,6 +130,25 @@ def _load_toxicity_model():
     except Exception:
         pass
 
+def _sanitize_config_for_keras2(obj):
+    if isinstance(obj, dict):
+        res = {}
+        for k, v in obj.items():
+            if k in ('build_config', 'registered_name', 'shared_object_id', 'quantization_config'):
+                continue
+            if k == 'dtype' and isinstance(v, dict):
+                res[k] = 'float32'
+            elif k == 'class_name' and v == 'function':
+                res[k] = 'weighted_binary_crossentropy'
+            elif k == 'module' and v == 'builtins':
+                res[k] = 'keras.losses'
+            else:
+                res[k] = _sanitize_config_for_keras2(v)
+        return res
+    elif isinstance(obj, list):
+        return [_sanitize_config_for_keras2(item) for item in obj]
+    return obj
+
     if zipfile.is_zipfile(model_path):
         temp_dir = tempfile.mkdtemp()
         try:
@@ -139,9 +158,13 @@ def _load_toxicity_model():
                     for item in zin.infolist():
                         data = zin.read(item.filename)
                         if item.filename == 'config.json':
-                            cfg = json.loads(data.decode('utf-8'))
-                            cfg['compile_config'] = None
-                            data = json.dumps(cfg).encode('utf-8')
+                            try:
+                                cfg = json.loads(data.decode('utf-8'))
+                                cfg['compile_config'] = None
+                                clean_cfg = _sanitize_config_for_keras2(cfg)
+                                data = json.dumps(clean_cfg).encode('utf-8')
+                            except Exception:
+                                pass
                         zout.writestr(item, data)
             try:
                 loaded_model = keras.models.load_model(sanitized_path, custom_objects=custom_objs, compile=False)
