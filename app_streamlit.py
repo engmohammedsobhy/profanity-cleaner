@@ -608,9 +608,27 @@ def render_media_result(result: Dict[str, Any]) -> None:
         flagged = [row for row in result.get("log", []) if row.get("is_profane")]
         table_rows = flagged or result.get("log", [])[:250]
         if table_rows:
+            formatted_logs = []
+            for row in table_rows:
+                s_ms = int(row.get("start_ms", 0) or 0)
+                e_ms = int(row.get("end_ms", 0) or 0)
+                formatted_logs.append(
+                    {
+                        "Start Time": f"{s_ms // 60000:02d}:{(s_ms % 60000) / 1000:05.2f}",
+                        "End Time": f"{e_ms // 60000:02d}:{(e_ms % 60000) / 1000:05.2f}",
+                        "Word": str(row.get("word", "")).strip(),
+                        "Profane": bool(row.get("is_profane", False)),
+                    }
+                )
             calc_height = min(600, max(420 if is_video else 220, len(table_rows) * 36 + 40))
             st.dataframe(
-                compact_rows(table_rows, ["start_ms", "end_ms", "word", "is_profane"]),
+                formatted_logs,
+                column_config={
+                    "Start Time": st.column_config.TextColumn("Start Time", width="small", help="Start timestamp (MM:SS.ms)"),
+                    "End Time": st.column_config.TextColumn("End Time", width="small", help="End timestamp (MM:SS.ms)"),
+                    "Word": st.column_config.TextColumn("Word", width="medium"),
+                    "Profane": st.column_config.CheckboxColumn("Profane", width="small"),
+                },
                 use_container_width=True,
                 hide_index=True,
                 height=calc_height,
