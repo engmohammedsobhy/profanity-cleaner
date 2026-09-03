@@ -173,6 +173,8 @@ def _load_toxicity_model():
                             except Exception:
                                 pass
                         zout.writestr(item, data)
+
+            sanitized_err = None
             try:
                 loaded_model = keras.models.load_model(sanitized_path, custom_objects=custom_objs, compile=False)
                 try:
@@ -180,8 +182,9 @@ def _load_toxicity_model():
                 except Exception:
                     pass
                 return loaded_model
-            except Exception:
-                pass
+            except Exception as exc:
+                sanitized_err = exc
+
             try:
                 loaded_model = tf.keras.models.load_model(sanitized_path, custom_objects=custom_objs, compile=False)
                 try:
@@ -189,8 +192,12 @@ def _load_toxicity_model():
                 except Exception:
                     pass
                 return loaded_model
-            except Exception:
-                pass
+            except Exception as exc:
+                sanitized_err = exc
+
+            if sanitized_err:
+                print(f"[Model Loader] Sanitized model load failed: {sanitized_err}")
+                raise sanitized_err
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
