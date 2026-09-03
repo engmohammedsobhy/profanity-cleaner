@@ -1,4 +1,4 @@
-# Purity — AI Content Moderation & Profanity Cleaner
+# Profanity Cleaner : Content Moderation & Profanity Cleaner
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.9%2B-blue.svg?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.9+">
