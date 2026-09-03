@@ -61,9 +61,9 @@ MODEL_PATH = os.path.join(CURRENT_DIR, "toxicity_detection_model.keras")
 MODEL_LOAD_ERROR = None
 model = None
 
-def _sanitize_config_for_keras2(obj, is_input_layer=False):
+def _sanitize_config_for_keras2(obj, is_input_layer=False, current_class=None):
     if isinstance(obj, dict):
-        class_name = obj.get('class_name', '')
+        class_name = obj.get('class_name', current_class or '')
         is_input = (class_name == 'InputLayer') or is_input_layer
         res = {}
         for k, v in obj.items():
@@ -71,19 +71,24 @@ def _sanitize_config_for_keras2(obj, is_input_layer=False):
                 continue
             if k == 'batch_shape':
                 if is_input:
-                    res['batch_input_shape'] = _sanitize_config_for_keras2(v, is_input)
+                    res['batch_input_shape'] = _sanitize_config_for_keras2(v, is_input, class_name)
                 continue
-            elif k == 'dtype' and isinstance(v, dict):
-                res[k] = 'float32'
+            elif k == 'dtype':
+                if class_name == 'TextVectorization':
+                    res[k] = 'string'
+                elif isinstance(v, dict):
+                    res[k] = 'float32'
+                else:
+                    res[k] = v
             elif k == 'class_name' and v == 'function':
                 res[k] = 'weighted_binary_crossentropy'
             elif k == 'module' and v == 'builtins':
                 res[k] = 'keras.losses'
             else:
-                res[k] = _sanitize_config_for_keras2(v, is_input)
+                res[k] = _sanitize_config_for_keras2(v, is_input, class_name)
         return res
     elif isinstance(obj, list):
-        return [_sanitize_config_for_keras2(item, is_input_layer) for item in obj]
+        return [_sanitize_config_for_keras2(item, is_input_layer, current_class) for item in obj]
     return obj
 
 def _load_keras_file(target_path):
@@ -92,6 +97,14 @@ def _load_keras_file(target_path):
         import tf_keras as keras
     except ImportError:
         import tensorflow.keras as keras
+
+    class FixedTextVectorization(keras.layers.TextVectorization):
+        @classmethod
+        def from_config(cls, config):
+            cfg = dict(config)
+            if cfg.get("dtype") != "string":
+                cfg["dtype"] = "string"
+            return super().from_config(cfg)
 
     import zipfile
     import json
@@ -119,8 +132,8 @@ def _load_keras_file(target_path):
         "builtins.weighted_binary_crossentropy": weighted_binary_crossentropy,
         "loss": weighted_binary_crossentropy,
         "loss_function": weighted_binary_crossentropy,
-        "TextVectorization": keras.layers.TextVectorization,
-        "keras.layers.TextVectorization": keras.layers.TextVectorization,
+        "TextVectorization": FixedTextVectorization,
+        "keras.layers.TextVectorization": FixedTextVectorization,
     }
 
     try:
