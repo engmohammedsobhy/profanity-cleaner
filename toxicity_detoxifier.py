@@ -267,22 +267,9 @@ def _get_model():
         return None
 
 
-if st is not None:
-    @st.cache_resource
-    def load_cached_detox_model():
-        return _get_model()
-
-    get_model = load_cached_detox_model
-else:
-    _loaded_model = None
-
-    def get_model():
-        global _loaded_model
-
-        if _loaded_model is None:
-            _loaded_model = _get_model()
-
-        return _loaded_model
+def get_model():
+    from toxicity_detection_models import get_toxicity_model
+    return get_toxicity_model()
 
     
 DETOX_SYSTEM_PROMPT = """
