@@ -87,6 +87,26 @@ def _load_speech_model():
         return whisper.load_model("base")
 
 
+def _sanitize_config_for_keras2(obj):
+    if isinstance(obj, dict):
+        res = {}
+        for k, v in obj.items():
+            if k in ('build_config', 'registered_name', 'shared_object_id', 'quantization_config'):
+                continue
+            if k == 'dtype' and isinstance(v, dict):
+                res[k] = 'float32'
+            elif k == 'class_name' and v == 'function':
+                res[k] = 'weighted_binary_crossentropy'
+            elif k == 'module' and v == 'builtins':
+                res[k] = 'keras.losses'
+            else:
+                res[k] = _sanitize_config_for_keras2(v)
+        return res
+    elif isinstance(obj, list):
+        return [_sanitize_config_for_keras2(item) for item in obj]
+    return obj
+
+
 def _load_toxicity_model():
     import tensorflow as tf
     try:
@@ -117,7 +137,11 @@ def _load_toxicity_model():
 
     custom_objs = {
         "function": weighted_binary_crossentropy,
+        "builtins.function": weighted_binary_crossentropy,
         "weighted_binary_crossentropy": weighted_binary_crossentropy,
+        "builtins.weighted_binary_crossentropy": weighted_binary_crossentropy,
+        "loss": weighted_binary_crossentropy,
+        "loss_function": weighted_binary_crossentropy,
     }
 
     try:
@@ -129,25 +153,6 @@ def _load_toxicity_model():
         return tf.keras.models.load_model(model_path, custom_objects=custom_objs, compile=False)
     except Exception:
         pass
-
-def _sanitize_config_for_keras2(obj):
-    if isinstance(obj, dict):
-        res = {}
-        for k, v in obj.items():
-            if k in ('build_config', 'registered_name', 'shared_object_id', 'quantization_config'):
-                continue
-            if k == 'dtype' and isinstance(v, dict):
-                res[k] = 'float32'
-            elif k == 'class_name' and v == 'function':
-                res[k] = 'weighted_binary_crossentropy'
-            elif k == 'module' and v == 'builtins':
-                res[k] = 'keras.losses'
-            else:
-                res[k] = _sanitize_config_for_keras2(v)
-        return res
-    elif isinstance(obj, list):
-        return [_sanitize_config_for_keras2(item) for item in obj]
-    return obj
 
     if zipfile.is_zipfile(model_path):
         temp_dir = tempfile.mkdtemp()
