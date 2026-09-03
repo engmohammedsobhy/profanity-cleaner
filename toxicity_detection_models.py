@@ -28,6 +28,7 @@ def _ensure_model_path():
     import zipfile
     import urllib.request
     import tempfile
+    import shutil
 
     primary_path = os.path.join(BASE_DIR, "toxicity_detection_model.keras")
     alt_path = os.path.join(BASE_DIR, "toxicity_model.keras")
@@ -41,21 +42,41 @@ def _ensure_model_path():
             except Exception:
                 pass
 
+    def _download(url, dest):
+        req = urllib.request.Request(
+            url,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+        )
+        with urllib.request.urlopen(req, timeout=120) as resp, open(dest, "wb") as out:
+            shutil.copyfileobj(resp, out)
+
     try:
-        urllib.request.urlretrieve(MODEL_URL, primary_path)
+        if os.path.exists(primary_path) and os.path.getsize(primary_path) <= 1_000_000:
+            os.remove(primary_path)
+    except Exception:
+        pass
+
+    try:
+        _download(MODEL_URL, primary_path)
         if os.path.exists(primary_path) and os.path.getsize(primary_path) > 1_000_000 and zipfile.is_zipfile(primary_path):
             return primary_path
     except Exception:
         pass
 
     try:
-        urllib.request.urlretrieve(MODEL_URL, tmp_path)
+        if os.path.exists(tmp_path) and os.path.getsize(tmp_path) <= 1_000_000:
+            os.remove(tmp_path)
+    except Exception:
+        pass
+
+    try:
+        _download(MODEL_URL, tmp_path)
         if os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 1_000_000 and zipfile.is_zipfile(tmp_path):
             return tmp_path
     except Exception as e:
-        raise FileNotFoundError(f"Failed to download model from {MODEL_URL}: {e}")
+        raise FileNotFoundError(f"Failed to download model to {tmp_path}: {e}")
 
-    return primary_path
+    raise FileNotFoundError("Could not acquire a valid toxicity model file.")
 
 
 def _load_speech_model():
