@@ -1,7 +1,6 @@
 import os
 import re
 import string
-import urllib.request
 import numpy as np
 try:
     import streamlit as st
@@ -61,18 +60,87 @@ MODEL_PATH = os.path.join(CURRENT_DIR, "toxicity_detection_model.keras")
 MODEL_LOAD_ERROR = None
 model = None
 
-if tf is not None:
+def _load_keras_file(target_path):
+    import tensorflow as tf
+    import zipfile
+    import json
+    import tempfile
+    import shutil
+
+    try:
+        @tf.keras.utils.register_keras_serializable()
+        def weighted_binary_crossentropy(y_true, y_pred):
+            return tf.keras.losses.binary_crossentropy(y_true, y_pred)
+        custom_objs = {"weighted_binary_crossentropy": weighted_binary_crossentropy}
+    except Exception:
+        custom_objs = {}
+
+    try:
+        return tf.keras.models.load_model(target_path, custom_objects=custom_objs, compile=False)
+    except Exception as e:
+        if zipfile.is_zipfile(target_path):
+            try:
+                temp_dir = tempfile.mkdtemp()
+                sanitized_path = os.path.join(temp_dir, "sanitized_model.keras")
+                with zipfile.ZipFile(target_path, 'r') as zin:
+                    with zipfile.ZipFile(sanitized_path, 'w') as zout:
+                        for item in zin.infolist():
+                            data = zin.read(item.filename)
+                            if item.filename == 'config.json':
+                                cfg = json.loads(data.decode('utf-8'))
+                                cfg['compile_config'] = None
+                                data = json.dumps(cfg).encode('utf-8')
+                            zout.writestr(item, data)
+                loaded_model = tf.keras.models.load_model(sanitized_path, custom_objects=custom_objs, compile=False)
+                try:
+                    shutil.copyfile(sanitized_path, target_path)
+                except Exception:
+                    pass
+                shutil.rmtree(temp_dir, ignore_errors=True)
+                return loaded_model
+            except Exception:
+                pass
+        raise e
+
+def _get_model():
+    global MODEL_LOAD_ERROR
+
+    try:
+        import tensorflow as tf
+    except ImportError:
+        MODEL_LOAD_ERROR = "TensorFlow is not installed."
+        return None
+
     try:
         if not os.path.exists(MODEL_PATH):
             MODEL_LOAD_ERROR = f"Model file not found at: {MODEL_PATH}"
-        else:
-            model = tf.keras.models.load_model(MODEL_PATH)
-    except Exception as e:
-        model = None
-        MODEL_LOAD_ERROR = str(e)
-else:
-    MODEL_LOAD_ERROR = "TensorFlow is not installed."
+            return None
 
+        return _load_keras_file(MODEL_PATH)
+
+    except Exception as e:
+        MODEL_LOAD_ERROR = str(e)
+        return None
+
+
+if st is not None:
+    @st.cache_resource
+    def load_cached_detox_model():
+        return _get_model()
+
+    get_model = load_cached_detox_model
+else:
+    _loaded_model = None
+
+    def get_model():
+        global _loaded_model
+
+        if _loaded_model is None:
+            _loaded_model = _get_model()
+
+        return _loaded_model
+
+    
 DETOX_SYSTEM_PROMPT = """
 You are a direct text rephraser.
 Transform rude or toxic comments into polite, constructive alternatives while preserving the intent.
@@ -97,7 +165,8 @@ def end_to_end_detoxifier(raw_text: str, threshold: float = 0.60) -> dict:
         }
 
     cleaned_input = advanced_clean_text(raw_text)
-    input_array = np.array([cleaned_input], dtype=object)
+    import tensorflow as tf
+    input_array = tf.constant([cleaned_input])
 
     model = get_model()
     if model is not None:
