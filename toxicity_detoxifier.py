@@ -67,40 +67,55 @@ def _load_keras_file(target_path):
     import tempfile
     import shutil
 
-    try:
-        @tf.keras.utils.register_keras_serializable()
-        def weighted_binary_crossentropy(y_true, y_pred):
-            return tf.keras.losses.binary_crossentropy(y_true, y_pred)
-        custom_objs = {"weighted_binary_crossentropy": weighted_binary_crossentropy}
-    except Exception:
-        custom_objs = {}
+    def weighted_binary_crossentropy(y_true, y_pred):
+        return tf.keras.losses.binary_crossentropy(y_true, y_pred)
 
     try:
-        return tf.keras.models.load_model(target_path, custom_objects=custom_objs, compile=False)
-    except Exception as e:
-        if zipfile.is_zipfile(target_path):
+        @tf.keras.utils.register_keras_serializable(name="function")
+        def reg_func(y_true, y_pred):
+            return tf.keras.losses.binary_crossentropy(y_true, y_pred)
+    except Exception:
+        pass
+
+    custom_objs = {
+        "function": weighted_binary_crossentropy,
+        "weighted_binary_crossentropy": weighted_binary_crossentropy,
+    }
+
+    try:
+        return tf.keras.models.load_model(
+            target_path, custom_objects=custom_objs, compile=False, safe_mode=False
+        )
+    except Exception:
+        pass
+
+    if zipfile.is_zipfile(target_path):
+        temp_dir = tempfile.mkdtemp()
+        try:
+            sanitized_path = os.path.join(temp_dir, "sanitized_model.keras")
+            with zipfile.ZipFile(target_path, 'r') as zin:
+                with zipfile.ZipFile(sanitized_path, 'w') as zout:
+                    for item in zin.infolist():
+                        data = zin.read(item.filename)
+                        if item.filename == 'config.json':
+                            cfg = json.loads(data.decode('utf-8'))
+                            cfg['compile_config'] = None
+                            data = json.dumps(cfg).encode('utf-8')
+                        zout.writestr(item, data)
+            loaded_model = tf.keras.models.load_model(
+                sanitized_path, custom_objects=custom_objs, compile=False, safe_mode=False
+            )
             try:
-                temp_dir = tempfile.mkdtemp()
-                sanitized_path = os.path.join(temp_dir, "sanitized_model.keras")
-                with zipfile.ZipFile(target_path, 'r') as zin:
-                    with zipfile.ZipFile(sanitized_path, 'w') as zout:
-                        for item in zin.infolist():
-                            data = zin.read(item.filename)
-                            if item.filename == 'config.json':
-                                cfg = json.loads(data.decode('utf-8'))
-                                cfg['compile_config'] = None
-                                data = json.dumps(cfg).encode('utf-8')
-                            zout.writestr(item, data)
-                loaded_model = tf.keras.models.load_model(sanitized_path, custom_objects=custom_objs, compile=False)
-                try:
-                    shutil.copyfile(sanitized_path, target_path)
-                except Exception:
-                    pass
-                shutil.rmtree(temp_dir, ignore_errors=True)
-                return loaded_model
+                shutil.copyfile(sanitized_path, target_path)
             except Exception:
                 pass
-        raise e
+            return loaded_model
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+    return tf.keras.models.load_model(
+        target_path, custom_objects=custom_objs, compile=False, safe_mode=False
+    )
 
 def _get_model():
     global MODEL_LOAD_ERROR
