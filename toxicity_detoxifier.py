@@ -71,15 +71,23 @@ def _load_keras_file(target_path):
         return tf.keras.losses.binary_crossentropy(y_true, y_pred)
 
     try:
+        @tf.keras.utils.register_keras_serializable(package="builtins", name="function")
+        def reg_func1(y_true, y_pred):
+            return tf.keras.losses.binary_crossentropy(y_true, y_pred)
+
         @tf.keras.utils.register_keras_serializable(name="function")
-        def reg_func(y_true, y_pred):
+        def reg_func2(y_true, y_pred):
             return tf.keras.losses.binary_crossentropy(y_true, y_pred)
     except Exception:
         pass
 
     custom_objs = {
         "function": weighted_binary_crossentropy,
+        "builtins.function": weighted_binary_crossentropy,
         "weighted_binary_crossentropy": weighted_binary_crossentropy,
+        "builtins.weighted_binary_crossentropy": weighted_binary_crossentropy,
+        "loss": weighted_binary_crossentropy,
+        "loss_function": weighted_binary_crossentropy,
     }
 
     try:
@@ -98,18 +106,28 @@ def _load_keras_file(target_path):
                     for item in zin.infolist():
                         data = zin.read(item.filename)
                         if item.filename == 'config.json':
-                            cfg = json.loads(data.decode('utf-8'))
-                            cfg['compile_config'] = None
-                            data = json.dumps(cfg).encode('utf-8')
+                            cfg_text = data.decode('utf-8')
+                            try:
+                                cfg = json.loads(cfg_text)
+                                cfg['compile_config'] = None
+                                cfg_text = json.dumps(cfg)
+                            except Exception:
+                                pass
+                            cfg_text = cfg_text.replace('"class_name": "function"', '"class_name": "weighted_binary_crossentropy"')
+                            cfg_text = cfg_text.replace('"module": "builtins"', '"module": "keras.losses"')
+                            data = cfg_text.encode('utf-8')
                         zout.writestr(item, data)
-            loaded_model = tf.keras.models.load_model(
-                sanitized_path, custom_objects=custom_objs, compile=False, safe_mode=False
-            )
             try:
-                shutil.copyfile(sanitized_path, target_path)
+                loaded_model = tf.keras.models.load_model(
+                    sanitized_path, custom_objects=custom_objs, compile=False, safe_mode=False
+                )
+                try:
+                    shutil.copyfile(sanitized_path, target_path)
+                except Exception:
+                    pass
+                return loaded_model
             except Exception:
                 pass
-            return loaded_model
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
