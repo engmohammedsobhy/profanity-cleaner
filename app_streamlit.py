@@ -15,7 +15,6 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 import streamlit_workflows as workflows
-import detoxifier_page
 
 
 st.set_page_config(page_title="Profanity Cleaner", layout="wide", page_icon="P")
@@ -384,9 +383,7 @@ def render_copy_button(text: str) -> None:
 
 
 def render_mascot(state: str) -> None:
-    path = workflows.backend.MASCOT_SVG_PATHS.get(state) if workflows.backend is not None and hasattr(workflows.backend, "MASCOT_SVG_PATHS") else ""
-    if path and os.path.exists(path):
-        st.image(path, use_container_width=True)
+    pass
 
 
 def compact_rows(rows: List[Dict[str, Any]], keys: List[str]) -> List[Dict[str, Any]]:
@@ -394,12 +391,8 @@ def compact_rows(rows: List[Dict[str, Any]], keys: List[str]) -> List[Dict[str, 
 
 
 def render_header() -> None:
-    top_left, top_right = st.columns([0.82, 0.18], vertical_alignment="center")
-    with top_left:
-        st.markdown("<div class='apple-title'>Profanity Cleaner</div>", unsafe_allow_html=True)
-        st.markdown("<div class='apple-subtitle'>Intelligent media moderation, speech censoring, toxicity detection & AI detoxification.</div>", unsafe_allow_html=True)
-    with top_right:
-        render_mascot("startup")
+    st.markdown("<div class='apple-title'>Profanity Cleaner</div>", unsafe_allow_html=True)
+    st.markdown("<div class='apple-subtitle'>Intelligent media moderation, speech censoring, toxicity detection & AI detoxification.</div>", unsafe_allow_html=True)
 
 
 def render_home_page() -> None:
