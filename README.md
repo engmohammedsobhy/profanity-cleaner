@@ -13,9 +13,9 @@
 
 ## 📌 Executive Summary
 
-**Purity (Profanity Cleaner)** is a state-of-the-art, multi-modal content moderation and sanitization engine. Built as a sleek web application powered by **Streamlit**, Purity automatically transcribes, detects, redacts, and detoxifies profanity and toxic language across text documents, speech audio recordings, and video files.
+**Profanity Cleaner** is a state-of-the-art, multi-modal content moderation and sanitization engine. Built as a sleek web application powered by **Streamlit**, automatically transcribes, detects, redacts, and detoxifies profanity and toxic language across text documents, speech audio recordings, and video files.
 
-Whether you are a content creator preparing videos for family-friendly platforms, a platform administrator moderating user comments, or a data analyst processing text corpora, Purity offers granular rule-based lexicography alongside deep learning neural classifiers and generative LLM rephrasing.
+Whether you are a content creator preparing videos for family-friendly platforms, a platform administrator moderating user comments, or a data analyst processing text corpora, it offers granular rule-based lexicography alongside deep learning neural classifiers and generative LLM rephrasing.
 
 ---
 
