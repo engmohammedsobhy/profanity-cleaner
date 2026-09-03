@@ -1,11 +1,12 @@
 import os
 import re
 import string
+import urllib.request
 import numpy as np
 try:
-    import tensorflow as tf
+    import streamlit as st
 except ImportError:
-    tf = None
+    st = None
 
 try:
     from groq import Groq
@@ -46,7 +47,10 @@ def advanced_clean_text(text: str) -> str:
     text = re.sub(r'https?://\S+|www\.\S+|<.*?>+', '', text)
     text = text.translate(str.maketrans('', '', string.punctuation))
     text = re.sub(r'\d+', '', text)
-    words = [lemmatizer.lemmatize(w) for w in text.split() if w not in custom_stopwords]
+    if lemmatizer:
+        words = [lemmatizer.lemmatize(w) for w in text.split() if w not in custom_stopwords]
+    else:
+        words = [w for w in text.split() if w not in custom_stopwords]
     return " ".join(words)
 
 
@@ -95,6 +99,7 @@ def end_to_end_detoxifier(raw_text: str, threshold: float = 0.60) -> dict:
     cleaned_input = advanced_clean_text(raw_text)
     input_array = np.array([cleaned_input], dtype=object)
 
+    model = get_model()
     if model is not None:
         probabilities = model.predict(input_array, verbose=0)[0]
         max_score = float(np.max(probabilities))
@@ -102,6 +107,7 @@ def end_to_end_detoxifier(raw_text: str, threshold: float = 0.60) -> dict:
         category_scores = {
             cat: float(prob) for cat, prob in zip(CATEGORIES, probabilities)
         }
+
     else:
         max_score = 0.0
         top_category = "UNKNOWN"
