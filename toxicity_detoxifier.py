@@ -3,6 +3,36 @@ import re
 import string
 import numpy as np
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
+
+try:
+    import importlib
+    for mod_path in [
+        'tf_keras.src.layers.preprocessing.index_lookup',
+        'keras.layers.preprocessing.index_lookup',
+        'keras.src.layers.preprocessing.index_lookup',
+        'tensorflow.python.keras.layers.preprocessing.index_lookup',
+    ]:
+        try:
+            mod = importlib.import_module(mod_path)
+            for cls_name in ['IndexLookup', 'StringLookup', 'IntegerLookup']:
+                if hasattr(mod, cls_name):
+                    cls_obj = getattr(mod, cls_name)
+                    if hasattr(cls_obj, 'load_assets'):
+                        orig_func = getattr(cls_obj, 'load_assets')
+                        def _make_safe(orig):
+                            def _safe_load_assets(self, dir_path):
+                                if dir_path is None:
+                                    return
+                                try:
+                                    return orig(self, dir_path)
+                                except Exception:
+                                    pass
+                            return _safe_load_assets
+                        setattr(cls_obj, 'load_assets', _make_safe(orig_func))
+        except Exception:
+            pass
+except Exception:
+    pass
 try:
     import streamlit as st
 except ImportError:
