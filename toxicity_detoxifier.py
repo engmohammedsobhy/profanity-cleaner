@@ -174,13 +174,29 @@ def _load_keras_file(target_path):
         "keras.layers.TextVectorization": FixedTextVectorization,
     }
 
+    def _finalize_model(m):
+        if m is None:
+            return m
+        try:
+            for layer in m.layers:
+                if hasattr(layer, 'get_vocabulary') or 'vector' in getattr(layer, 'name', '').lower():
+                    try:
+                        vocab = layer.get_vocabulary()
+                        if vocab and len(vocab) > 0:
+                            layer.set_vocabulary(vocab)
+                    except Exception as err:
+                        print(f"Failed to re-initialize vectorizer vocabulary: {err}")
+        except Exception:
+            pass
+        return m
+
     try:
-        return keras.models.load_model(target_path, custom_objects=custom_objs, compile=False)
+        return _finalize_model(keras.models.load_model(target_path, custom_objects=custom_objs, compile=False))
     except Exception:
         pass
 
     try:
-        return tf.keras.models.load_model(target_path, custom_objects=custom_objs, compile=False)
+        return _finalize_model(tf.keras.models.load_model(target_path, custom_objects=custom_objs, compile=False))
     except Exception:
         pass
 
@@ -209,7 +225,7 @@ def _load_keras_file(target_path):
                     shutil.copyfile(sanitized_path, target_path)
                 except Exception:
                     pass
-                return loaded_model
+                return _finalize_model(loaded_model)
             except Exception as exc:
                 sanitized_err = exc
 
@@ -219,7 +235,7 @@ def _load_keras_file(target_path):
                     shutil.copyfile(sanitized_path, target_path)
                 except Exception:
                     pass
-                return loaded_model
+                return _finalize_model(loaded_model)
             except Exception as exc:
                 sanitized_err = exc
 
@@ -230,9 +246,9 @@ def _load_keras_file(target_path):
             shutil.rmtree(temp_dir, ignore_errors=True)
 
     try:
-        return keras.models.load_model(target_path, custom_objects=custom_objs, compile=False)
+        return _finalize_model(keras.models.load_model(target_path, custom_objects=custom_objs, compile=False))
     except Exception:
-        return tf.keras.models.load_model(target_path, custom_objects=custom_objs, compile=False)
+        return _finalize_model(tf.keras.models.load_model(target_path, custom_objects=custom_objs, compile=False))
 
 def _get_model():
     global MODEL_LOAD_ERROR
