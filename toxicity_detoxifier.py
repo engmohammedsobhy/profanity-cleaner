@@ -121,17 +121,34 @@ def _get_model():
     global MODEL_LOAD_ERROR
 
     try:
+        from toxicity_detection_models import get_toxicity_model
+        m = get_toxicity_model()
+        if m is not None:
+            return m
+    except Exception:
+        pass
+
+    try:
         import tensorflow as tf
     except ImportError:
         MODEL_LOAD_ERROR = "TensorFlow is not installed."
         return None
 
     try:
-        if not os.path.exists(MODEL_PATH):
-            MODEL_LOAD_ERROR = f"Model file not found at: {MODEL_PATH}"
-            return None
+        path_to_load = MODEL_PATH
+        if not os.path.exists(path_to_load):
+            alt_path = os.path.join(CURRENT_DIR, "toxicity_model.keras")
+            if os.path.exists(alt_path):
+                path_to_load = alt_path
+            else:
+                try:
+                    import urllib.request
+                    urllib.request.urlretrieve("https://github.com/engmohammedsobhy/profanity-cleaner/releases/download/v1.0.0/toxicity_model.keras", path_to_load)
+                except Exception as dl_err:
+                    MODEL_LOAD_ERROR = f"Model file not found and download failed: {dl_err}"
+                    return None
 
-        return _load_keras_file(MODEL_PATH)
+        return _load_keras_file(path_to_load)
 
     except Exception as e:
         MODEL_LOAD_ERROR = str(e)
@@ -207,24 +224,37 @@ def end_to_end_detoxifier(raw_text: str, threshold: float = 0.60) -> dict:
             "category_scores": category_scores
         }
 
-    response = client.chat.completions.create(
-        model="allam-2-7b",
-        messages=[
-            {"role": "system", "content": DETOX_SYSTEM_PROMPT},
-            {"role": "user", "content": f"Rewrite this comment politely: {raw_text}"}
-        ],
-        temperature=0.1,
-        max_tokens=600
-    )
+    if client is None:
+        return {
+            "original_text": raw_text,
+            "detoxified_text": f"[Detoxification LLM client unavailable - GROQ_API_KEY not configured] {raw_text}",
+            "was_modified": False,
+            "top_category": top_category,
+            "toxicity_score": max_score,
+            "category_scores": category_scores
+        }
 
-    raw_content = response.choices[0].message.content
+    try:
+        response = client.chat.completions.create(
+            model="allam-2-7b",
+            messages=[
+                {"role": "system", "content": DETOX_SYSTEM_PROMPT},
+                {"role": "user", "content": f"Rewrite this comment politely: {raw_text}"}
+            ],
+            temperature=0.1,
+            max_tokens=600
+        )
 
-    if "</think>" in raw_content:
-        clean_content = raw_content.split("</think>")[-1].strip()
-    else:
-        clean_content = re.sub(r'<think>.*', '', raw_content, flags=re.DOTALL).strip()
-        if not clean_content:
-            clean_content = raw_content.split("\n")[-1].strip()
+        raw_content = response.choices[0].message.content
+
+        if "</think>" in raw_content:
+            clean_content = raw_content.split("</think>")[-1].strip()
+        else:
+            clean_content = re.sub(r'<think>.*', '', raw_content, flags=re.DOTALL).strip()
+            if not clean_content:
+                clean_content = raw_content.split("\n")[-1].strip()
+    except Exception as e:
+        clean_content = raw_text
 
     return {
         "original_text": raw_text,
