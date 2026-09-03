@@ -37,9 +37,10 @@ def _load_speech_model():
 
 def _load_toxicity_model():
     import tensorflow as tf
-    @tf.keras.utils.register_keras_serializable()
-    def weighted_binary_crossentropy(y_true, y_pred):
-        return tf.keras.losses.binary_crossentropy(y_true, y_pred)
+    import zipfile
+    import json
+    import tempfile
+    import shutil
 
     if not os.path.exists(MODEL_PATH):
         raise FileNotFoundError(
@@ -47,13 +48,47 @@ def _load_toxicity_model():
             f"Make sure 'toxicity_detection_model.keras' is placed in project root."
         )
 
-    return tf.keras.models.load_model(
-        MODEL_PATH,
-        custom_objects={
-            "weighted_binary_crossentropy": weighted_binary_crossentropy
-        },
-        compile=False,
-    )
+    try:
+        @tf.keras.utils.register_keras_serializable()
+        def weighted_binary_crossentropy(y_true, y_pred):
+            return tf.keras.losses.binary_crossentropy(y_true, y_pred)
+        custom_objs = {"weighted_binary_crossentropy": weighted_binary_crossentropy}
+    except Exception:
+        custom_objs = {}
+
+    try:
+        return tf.keras.models.load_model(
+            MODEL_PATH,
+            custom_objects=custom_objs,
+            compile=False,
+        )
+    except Exception as e:
+        # Fallback for Keras 3 deserialization errors with compile_config (e.g. builtins.function)
+        if zipfile.is_zipfile(MODEL_PATH):
+            try:
+                temp_dir = tempfile.mkdtemp()
+                sanitized_path = os.path.join(temp_dir, "sanitized_model.keras")
+                with zipfile.ZipFile(MODEL_PATH, 'r') as zin:
+                    with zipfile.ZipFile(sanitized_path, 'w') as zout:
+                        for item in zin.infolist():
+                            data = zin.read(item.filename)
+                            if item.filename == 'config.json':
+                                cfg = json.loads(data.decode('utf-8'))
+                                cfg['compile_config'] = None
+                                data = json.dumps(cfg).encode('utf-8')
+                            zout.writestr(item, data)
+                loaded_model = tf.keras.models.load_model(
+                    sanitized_path, custom_objects=custom_objs, compile=False
+                )
+                try:
+                    shutil.copyfile(sanitized_path, MODEL_PATH)
+                except Exception:
+                    pass
+                shutil.rmtree(temp_dir, ignore_errors=True)
+                return loaded_model
+            except Exception:
+                pass
+        raise e
 
 def _load_categories():
     if not os.path.exists(CATEGORIES_PATH):
@@ -112,7 +147,8 @@ def analyze_text_toxicity(text, threshold=0.70):
     toxicity_model = get_toxicity_model()
     categories = get_categories()
 
-    input_text = np.array([text], dtype=object)
+    import tensorflow as tf
+    input_text = tf.constant([text])
     probabilities = toxicity_model.predict(input_text, verbose=0)[0]
 
     class_probs = {

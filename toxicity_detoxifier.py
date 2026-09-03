@@ -60,6 +60,48 @@ MODEL_URL = "https://github.com/engmohammedsobhy/profanity-cleaner/releases/down
 
 MODEL_LOAD_ERROR = None
 
+def _load_keras_file(target_path):
+    import tensorflow as tf
+    import zipfile
+    import json
+    import tempfile
+    import shutil
+
+    try:
+        @tf.keras.utils.register_keras_serializable()
+        def weighted_binary_crossentropy(y_true, y_pred):
+            return tf.keras.losses.binary_crossentropy(y_true, y_pred)
+        custom_objs = {"weighted_binary_crossentropy": weighted_binary_crossentropy}
+    except Exception:
+        custom_objs = {}
+
+    try:
+        return tf.keras.models.load_model(target_path, custom_objects=custom_objs, compile=False)
+    except Exception as e:
+        if zipfile.is_zipfile(target_path):
+            try:
+                temp_dir = tempfile.mkdtemp()
+                sanitized_path = os.path.join(temp_dir, "sanitized_model.keras")
+                with zipfile.ZipFile(target_path, 'r') as zin:
+                    with zipfile.ZipFile(sanitized_path, 'w') as zout:
+                        for item in zin.infolist():
+                            data = zin.read(item.filename)
+                            if item.filename == 'config.json':
+                                cfg = json.loads(data.decode('utf-8'))
+                                cfg['compile_config'] = None
+                                data = json.dumps(cfg).encode('utf-8')
+                            zout.writestr(item, data)
+                loaded_model = tf.keras.models.load_model(sanitized_path, custom_objects=custom_objs, compile=False)
+                try:
+                    shutil.copyfile(sanitized_path, target_path)
+                except Exception:
+                    pass
+                shutil.rmtree(temp_dir, ignore_errors=True)
+                return loaded_model
+            except Exception:
+                pass
+        raise e
+
 def _get_model():
     global MODEL_LOAD_ERROR
     try:
@@ -69,14 +111,15 @@ def _get_model():
         return None
 
     try:
-        if not os.path.exists(MODEL_PATH):
-            # Check local file toxicity_detection_model.keras as fallback
+        path_to_load = MODEL_PATH
+        if not os.path.exists(path_to_load):
             alt_path = os.path.join(CURRENT_DIR, "toxicity_detection_model.keras")
             if os.path.exists(alt_path):
-                return tf.keras.models.load_model(alt_path, compile=False)
-            urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+                path_to_load = alt_path
+            else:
+                urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
 
-        return tf.keras.models.load_model(MODEL_PATH, compile=False)
+        return _load_keras_file(path_to_load)
     except Exception as e:
         MODEL_LOAD_ERROR = str(e)
         return None
@@ -118,7 +161,8 @@ def end_to_end_detoxifier(raw_text: str, threshold: float = 0.60) -> dict:
         }
 
     cleaned_input = advanced_clean_text(raw_text)
-    input_array = np.array([cleaned_input], dtype=object)
+    import tensorflow as tf
+    input_array = tf.constant([cleaned_input])
 
     model = get_model()
     if model is not None:
