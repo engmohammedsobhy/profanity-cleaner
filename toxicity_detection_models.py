@@ -133,6 +133,14 @@ def _load_toxicity_model():
                 cfg["dtype"] = "string"
             return super().from_config(cfg)
 
+        def load_assets(self, dir_path):
+            if dir_path is None:
+                return
+            try:
+                return super().load_assets(dir_path)
+            except Exception:
+                pass
+
     import zipfile
     import json
     import tempfile
