@@ -61,14 +61,18 @@ MODEL_PATH = os.path.join(CURRENT_DIR, "toxicity_detection_model.keras")
 MODEL_LOAD_ERROR = None
 model = None
 
-def _sanitize_config_for_keras2(obj):
+def _sanitize_config_for_keras2(obj, is_input_layer=False):
     if isinstance(obj, dict):
+        class_name = obj.get('class_name', '')
+        is_input = (class_name == 'InputLayer') or is_input_layer
         res = {}
         for k, v in obj.items():
             if k in ('build_config', 'registered_name', 'shared_object_id', 'quantization_config', 'optional', 'zero_output_for_mask', 'vocabulary_size', 'encoding'):
                 continue
             if k == 'batch_shape':
-                res['batch_input_shape'] = _sanitize_config_for_keras2(v)
+                if is_input:
+                    res['batch_input_shape'] = _sanitize_config_for_keras2(v, is_input)
+                continue
             elif k == 'dtype' and isinstance(v, dict):
                 res[k] = 'float32'
             elif k == 'class_name' and v == 'function':
@@ -76,10 +80,10 @@ def _sanitize_config_for_keras2(obj):
             elif k == 'module' and v == 'builtins':
                 res[k] = 'keras.losses'
             else:
-                res[k] = _sanitize_config_for_keras2(v)
+                res[k] = _sanitize_config_for_keras2(v, is_input)
         return res
     elif isinstance(obj, list):
-        return [_sanitize_config_for_keras2(item) for item in obj]
+        return [_sanitize_config_for_keras2(item, is_input_layer) for item in obj]
     return obj
 
 def _load_keras_file(target_path):
