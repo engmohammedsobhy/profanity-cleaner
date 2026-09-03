@@ -1,7 +1,6 @@
 import os
 import re
 import string
-import urllib.request
 import numpy as np
 try:
     import tensorflow as tf
@@ -53,8 +52,7 @@ def advanced_clean_text(text: str) -> str:
 
 CATEGORIES = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(CURRENT_DIR, "toxicity_model.keras")
-MODEL_URL = "https://github.com/engmohammedsobhy/profanity-cleaner/releases/download/v1.0.0/toxicity_model.keras"
+MODEL_PATH = os.path.join(CURRENT_DIR, "toxicity_detection_model.keras")
 
 MODEL_LOAD_ERROR = None
 model = None
@@ -62,9 +60,9 @@ model = None
 if tf is not None:
     try:
         if not os.path.exists(MODEL_PATH):
-            urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
-
-        model = tf.keras.models.load_model(MODEL_PATH)
+            MODEL_LOAD_ERROR = f"Model file not found at: {MODEL_PATH}"
+        else:
+            model = tf.keras.models.load_model(MODEL_PATH)
     except Exception as e:
         model = None
         MODEL_LOAD_ERROR = str(e)
