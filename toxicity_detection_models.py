@@ -148,6 +148,8 @@ def _load_toxicity_model():
         "builtins.weighted_binary_crossentropy": weighted_binary_crossentropy,
         "loss": weighted_binary_crossentropy,
         "loss_function": weighted_binary_crossentropy,
+        "TextVectorization": keras.layers.TextVectorization,
+        "keras.layers.TextVectorization": keras.layers.TextVectorization,
     }
 
     try:

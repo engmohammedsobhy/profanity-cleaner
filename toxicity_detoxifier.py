@@ -119,6 +119,8 @@ def _load_keras_file(target_path):
         "builtins.weighted_binary_crossentropy": weighted_binary_crossentropy,
         "loss": weighted_binary_crossentropy,
         "loss_function": weighted_binary_crossentropy,
+        "TextVectorization": keras.layers.TextVectorization,
+        "keras.layers.TextVectorization": keras.layers.TextVectorization,
     }
 
     try:
