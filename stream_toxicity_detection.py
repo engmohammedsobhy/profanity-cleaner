@@ -43,7 +43,7 @@ def render_toxicity_page():
         "⚙️ Moderation Sensitivity Threshold (%)",
         min_value=10,
         max_value=90,
-        value=50,
+        value=70,
         step=5,
         help="Categories exceeding this probability threshold will trigger a violation alert."
     )

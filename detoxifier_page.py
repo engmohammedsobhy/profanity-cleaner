@@ -120,7 +120,7 @@ def render_toxicity_tab() -> None:
             "Toxicity Threshold",
             min_value=0.0,
             max_value=1.0,
-            value=0.60,
+            value=0.70,
             step=0.05,
             format="%.2f",
             help="Comments scoring above this threshold get rewritten by the LLM.",

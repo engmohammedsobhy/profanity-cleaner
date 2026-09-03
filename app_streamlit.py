@@ -116,6 +116,60 @@ st.markdown(
             color: var(--apple-red-light) !important;
         }
 
+        /* Home Page Sleek Feature Cards */
+        .home-card {
+            background: rgba(28, 28, 30, 0.65) !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-radius: 20px !important;
+            padding: 1.4rem 1.6rem !important;
+            backdrop-filter: blur(30px) !important;
+            -webkit-backdrop-filter: blur(30px) !important;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            min-height: 220px;
+        }
+
+        .home-card:hover {
+            border-color: rgba(229, 9, 20, 0.4) !important;
+            box-shadow: 0 10px 30px rgba(229, 9, 20, 0.15) !important;
+            transform: translateY(-2px) !important;
+        }
+
+        .home-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, rgba(229, 9, 20, 0.25), rgba(255, 69, 58, 0.15));
+            border: 1px solid rgba(229, 9, 20, 0.4);
+            color: #ff453a;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            padding: 0.25rem 0.75rem;
+            border-radius: var(--pill-radius);
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+        }
+
+        .home-card-title {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 0.4rem;
+            letter-spacing: -0.02em;
+        }
+
+        .home-card-desc {
+            color: var(--text-secondary);
+            font-size: 0.92rem;
+            line-height: 1.45;
+            margin-bottom: 0.9rem;
+        }
+
+        .home-feature-item {
+            color: #e5e5ea;
+            font-size: 0.86rem;
+            margin-bottom: 0.4rem;
+            line-height: 1.4;
+        }
+
         /* Apple Metric Strips */
         .metric-card {
             background: rgba(255, 255, 255, 0.03);
@@ -342,32 +396,151 @@ def compact_rows(rows: List[Dict[str, Any]], keys: List[str]) -> List[Dict[str, 
 def render_header() -> None:
     top_left, top_right = st.columns([0.82, 0.18], vertical_alignment="center")
     with top_left:
-        st.markdown("<div class='apple-title'>Profanity Detector</div>", unsafe_allow_html=True)
-        st.markdown("<div class='apple-subtitle'>Intelligent media moderation, speech censoring, and text profanity analysis.</div>", unsafe_allow_html=True)
+        st.markdown("<div class='apple-title'>Profanity Cleaner</div>", unsafe_allow_html=True)
+        st.markdown("<div class='apple-subtitle'>Intelligent media moderation, speech censoring, toxicity detection & AI detoxification.</div>", unsafe_allow_html=True)
     with top_right:
         render_mascot("startup")
 
 
 def render_home_page() -> None:
+    st.markdown(
+        """
+        <div style="background: linear-gradient(135deg, rgba(229, 9, 20, 0.15) 0%, rgba(28, 28, 30, 0.65) 100%); 
+                    border: 1px solid rgba(229, 9, 20, 0.3); 
+                    border-radius: 20px; 
+                    padding: 1.6rem 2rem; 
+                    margin-bottom: 1.2rem; 
+                    backdrop-filter: blur(25px);
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);">
+            <div class="home-badge">🚀 Content Moderation Engine v2.0</div>
+            <h2 style="color: #ffffff; font-size: 1.85rem; font-weight: 700; margin: 0.2rem 0 0.5rem 0; letter-spacing: -0.02em;">
+                Next-Gen Moderation & Generative AI Detoxification
+            </h2>
+            <p style="color: #a1a1a6; font-size: 1.02rem; margin: 0; line-height: 1.5;">
+                Unified suite for neural toxicity classification, automated polite rephrasing, audio/video speech censoring, and granular linguistic analysis.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     col1, col2 = st.columns(2, gap="medium")
+
     with col1:
-        with st.container():
-            st.markdown("### Media Moderation")
-            st.markdown("""
-            - **Speech-to-Text Transcription**: Powered by OpenAI Whisper models.
-            - **Timestamp Muting & Audio Bleeping**: Mute or overlay custom censor audio seamlessly.
-            - **Multi-Category Rules**: Granular control over 13 distinct profanity categories.
-            - **Subtitles & Export Logs**: Generate raw/clean `.srt`, `.txt`, and `.json` logs.
-            """)
+        st.markdown(
+            """
+            <div class="home-card">
+                <div class="home-badge">Deep Learning AI</div>
+                <div class="home-card-title">🛡️ Toxicity Detection</div>
+                <div class="home-card-desc">
+                    Multi-label neural network classification quantifying toxicity across 6 risk dimensions with real-time score breakdown.
+                </div>
+                <div class="home-feature-item">⚡ <b>6 Categories</b>: Toxic, Severe Toxic, Obscene, Threat, Insult, Identity Hate.</div>
+                <div class="home-feature-item">⚙️ <b>Sensitivity Slider</b>: Custom probability threshold filtering.</div>
+                <div class="home-feature-item">🎙️ <b>Multi-Modal Input</b>: Text and Media Transcription.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
+        st.button(
+            "Launch Toxicity Detection ➔",
+            key="home_btn_tox",
+            use_container_width=True,
+            type="primary",
+            on_click=set_page,
+            args=("Toxicity Detection",),
+        )
+
+        st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
+
+        st.markdown(
+            """
+            <div class="home-card">
+                <div class="home-badge">Speech & Audio Engine</div>
+                <div class="home-card-title">🎬 Media Moderation</div>
+                <div class="home-card-desc">
+                    Frame-accurate audio bleeping, timestamped speech muting, and automated subtitle export for videos and recordings.
+                </div>
+                <div class="home-feature-item">🎙️ <b>Whisper ASR</b>: High-precision speech-to-text transcription.</div>
+                <div class="home-feature-item">🔊 <b>Censor Audio</b>: Mute audio intervals or overlay custom bleep sound.</div>
+                <div class="home-feature-item">📄 <b>Export Subtitles</b>: Generate raw & clean .SRT & JSON logs.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
+        st.button(
+            "Launch Media Moderation ➔",
+            key="home_btn_media",
+            use_container_width=True,
+            type="primary",
+            on_click=set_page,
+            args=("Media Moderation",),
+        )
+
     with col2:
-        with st.container():
-            st.markdown("### Text NLP Moderation")
-            st.markdown("""
-            - **Obfuscation Detection**: Catch leet speak, unicode tricks, and hidden profanity.
-            - **Custom Word Overrides**: Fine-grained Whitelist and Blacklist rule enforcement.
-            - **Flexible Masking**: Replace flagged terms with custom characters or standard masks.
-            - **Deep Linguistics & Visual Highlighting**: Full POS tagging, density analysis, and highlighted HTML context views.
-            """)
+        st.markdown(
+            """
+            <div class="home-card">
+                <div class="home-badge">LLM Generative AI</div>
+                <div class="home-card-title">✨ Toxicity Detoxifier</div>
+                <div class="home-card-desc">
+                    Intelligent text rephrasing engine that automatically converts toxic or aggressive text into polite, professional communication.
+                </div>
+                <div class="home-feature-item">🤖 <b>Context Rewriting</b>: Preserves sentence meaning without hostility.</div>
+                <div class="home-feature-item">🔍 <b>Diff Highlighting</b>: Visual side-by-side comparison.</div>
+                <div class="home-feature-item">🛡️ <b>Smart Bypassing</b>: Leaves non-toxic text completely untouched.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
+        st.button(
+            "Launch Toxicity Detoxifier ➔",
+            key="home_btn_detox",
+            use_container_width=True,
+            type="primary",
+            on_click=set_page,
+            args=("Toxicity Detoxifier",),
+        )
+
+        st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
+
+        st.markdown(
+            """
+            <div class="home-card">
+                <div class="home-badge">Linguistics & Dictionary</div>
+                <div class="home-card-title">📝 Text NLP Moderation</div>
+                <div class="home-card-desc">
+                    Rule-based text sanitization with obfuscation detection (leet speak, unicode tricks) and custom word override lists.
+                </div>
+                <div class="home-feature-item">🔤 <b>Obfuscation Removal</b>: Unmasks hidden profanity patterns.</div>
+                <div class="home-feature-item">🎯 <b>Category Rules</b>: 13 granular profanity classes.</div>
+                <div class="home-feature-item">📊 <b>Linguistic Metrics</b>: POS tagging & profanity density analysis.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
+        st.button(
+            "Launch Text NLP ➔",
+            key="home_btn_nlp",
+            use_container_width=True,
+            type="primary",
+            on_click=set_page,
+            args=("Text NLP",),
+        )
+
+    st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div style="text-align: center; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1rem; color: #86868b; font-size: 0.82rem;">
+            <span>⚡ Powered by <b>TensorFlow 2.15 (Bi-LSTM)</b> • <b>OpenAI Whisper ASR</b> • <b>Generative LLM</b> • <b>Streamlit Cloud Engine</b></span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_metric_grid(stats: Dict[str, Any], mapping: List[tuple[str, str]]) -> None:

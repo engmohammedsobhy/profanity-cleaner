@@ -381,18 +381,34 @@ def text_to_sequence(text, model=None, max_len=150):
     return np.array([seq], dtype=np.int32)
 
 
+_COMPILED_PREDICT_FN = None
+
 def predict_toxicity_probabilities(model, text):
+    global _COMPILED_PREDICT_FN
     vocab_map = _get_vocab_map(model=model)
     if vocab_map:
         try:
             seq = text_to_sequence(text, model=model)
-            if hasattr(model, "layers") and len(model.layers) > 1 and ("vector" in getattr(model.layers[0], "name", "").lower() or hasattr(model.layers[0], "get_vocabulary")):
-                x = seq
+            import tensorflow as tf
+            if _COMPILED_PREDICT_FN is None and hasattr(model, "layers") and len(model.layers) > 1 and ("vector" in getattr(model.layers[0], "name", "").lower() or hasattr(model.layers[0], "get_vocabulary")):
+                sub_layers = model.layers[1:]
+                @tf.function(reduce_retracing=True)
+                def _fast_predict(seq_tensor):
+                    x = seq_tensor
+                    for layer in sub_layers:
+                        x = layer(x, training=False)
+                    return x
+                _COMPILED_PREDICT_FN = _fast_predict
+
+            if _COMPILED_PREDICT_FN is not None:
+                return _COMPILED_PREDICT_FN(tf.constant(seq)).numpy()[0]
+            elif hasattr(model, "layers") and len(model.layers) > 1:
+                x = tf.constant(seq)
                 for layer in model.layers[1:]:
                     x = layer(x, training=False)
                 return x.numpy()[0]
             else:
-                return model(seq, training=False).numpy()[0]
+                return model(tf.constant(seq), training=False).numpy()[0]
         except Exception as e:
             print(f"[Predict Fallback] Decoupled layer evaluation failed: {e}")
 
@@ -410,7 +426,7 @@ def transcribe_media(media_path):
     return result["text"].strip()
 
 
-def analyze_text_toxicity(text, threshold=0.50):
+def analyze_text_toxicity(text, threshold=0.70):
     if not text:
         return {
             "text": "",
@@ -443,6 +459,6 @@ def analyze_text_toxicity(text, threshold=0.50):
     }
 
 
-def analyze_media_toxicity(media_path, threshold=0.50):
+def analyze_media_toxicity(media_path, threshold=0.70):
     extracted_text = transcribe_media(media_path)
     return analyze_text_toxicity(extracted_text, threshold=threshold)

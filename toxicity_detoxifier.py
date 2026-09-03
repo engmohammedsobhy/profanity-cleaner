@@ -283,7 +283,7 @@ CRITICAL INSTRUCTIONS:
 """
 
 
-def end_to_end_detoxifier(raw_text: str, threshold: float = 0.60) -> dict:
+def end_to_end_detoxifier(raw_text: str, threshold: float = 0.70) -> dict:
 
     if not raw_text or not raw_text.strip():
         return {
