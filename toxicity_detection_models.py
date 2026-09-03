@@ -336,6 +336,58 @@ else:
     load_toxicity_model = get_toxicity_model
 
 
+_VOCAB_MAP = None
+
+def _get_vocab_map():
+    global _VOCAB_MAP
+    if _VOCAB_MAP is not None:
+        return _VOCAB_MAP
+    vocab_path = os.path.join(BASE_DIR, "vocab.json")
+    if os.path.exists(vocab_path):
+        try:
+            import json
+            with open(vocab_path, "r", encoding="utf-8") as f:
+                vocab_list = json.load(f)
+                _VOCAB_MAP = {w: i for i, w in enumerate(vocab_list)}
+                return _VOCAB_MAP
+        except Exception:
+            pass
+    return {}
+
+
+def text_to_sequence(text, max_len=150):
+    vocab_map = _get_vocab_map()
+    import re
+    clean_text = re.sub(r'[^\w\s]', '', str(text).lower())
+    words = clean_text.split()
+    seq = [vocab_map.get(w, 1) for w in words[:max_len]]
+    if len(seq) < max_len:
+        seq += [0] * (max_len - len(seq))
+    return np.array([seq], dtype=np.int32)
+
+
+def predict_toxicity_probabilities(model, text):
+    vocab_map = _get_vocab_map()
+    if vocab_map:
+        try:
+            seq = text_to_sequence(text)
+            if hasattr(model, "layers") and len(model.layers) > 1 and ("vector" in getattr(model.layers[0], "name", "").lower() or hasattr(model.layers[0], "get_vocabulary")):
+                import tensorflow as tf
+                sub_model = tf.keras.Sequential(model.layers[1:])
+                return sub_model(seq, training=False).numpy()[0]
+            else:
+                return model(seq, training=False).numpy()[0]
+        except Exception as e:
+            print(f"[Predict Fallback] Decoupled vectorizer evaluation failed: {e}")
+
+    import tensorflow as tf
+    input_text = tf.constant([str(text)])
+    try:
+        return model(input_text, training=False).numpy()[0]
+    except Exception:
+        return model.predict(input_text, verbose=0)[0]
+
+
 def transcribe_media(media_path):
     speech_model = get_speech_model()
     result = speech_model.transcribe(media_path)
@@ -354,12 +406,7 @@ def analyze_text_toxicity(text, threshold=0.70):
     toxicity_model = get_toxicity_model()
     categories = get_categories()
 
-    import tensorflow as tf
-    input_text = tf.constant([text])
-    try:
-        probabilities = toxicity_model(input_text, training=False).numpy()[0]
-    except Exception:
-        probabilities = toxicity_model.predict(input_text, verbose=0)[0]
+    probabilities = predict_toxicity_probabilities(toxicity_model, text)
 
     class_probs = {
         cat.upper(): float(prob * 100)
