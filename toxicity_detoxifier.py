@@ -314,7 +314,10 @@ def end_to_end_detoxifier(raw_text: str, threshold: float = 0.60) -> dict:
 
     model = get_model()
     if model is not None:
-        probabilities = model.predict(input_array, verbose=0)[0]
+        try:
+            probabilities = model(input_array, training=False).numpy()[0]
+        except Exception:
+            probabilities = model.predict(input_array, verbose=0)[0]
         max_score = float(np.max(probabilities))
         top_category = CATEGORIES[np.argmax(probabilities)].upper()
         category_scores = {

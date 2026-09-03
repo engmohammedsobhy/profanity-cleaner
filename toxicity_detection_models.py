@@ -356,7 +356,10 @@ def analyze_text_toxicity(text, threshold=0.70):
 
     import tensorflow as tf
     input_text = tf.constant([text])
-    probabilities = toxicity_model.predict(input_text, verbose=0)[0]
+    try:
+        probabilities = toxicity_model(input_text, training=False).numpy()[0]
+    except Exception:
+        probabilities = toxicity_model.predict(input_text, verbose=0)[0]
 
     class_probs = {
         cat.upper(): float(prob * 100)
