@@ -1,15 +1,14 @@
 from __future__ import annotations
- 
+
 import json
 from typing import Any, Dict
- 
+
 import streamlit as st
 import streamlit.components.v1 as components
- 
-import toxicity_detoxifier as detox
- 
 
- 
+import toxicity_detoxifier as detox
+
+
 def _copy_button(text: str, label: str = "Copy Detoxified Text") -> None:
     payload = json.dumps(text or "")
     components.html(
@@ -25,19 +24,19 @@ def _copy_button(text: str, label: str = "Copy Detoxified Text") -> None:
         """,
         height=44,
     )
- 
- 
+
+
 def _init_toxicity_state() -> None:
     defaults = {
         "toxicity_result": None,
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
- 
- 
+
+
 def _render_score_grid(category_scores: Dict[str, float]) -> None:
     if not category_scores:
-        reason = getattr(detox, "MODEL_LOAD_ERROR", None)
+        reason = getattr(detox, "MODEL_LOAD_ERROR", None) or getattr(detox, "ARABIC_MODEL_LOAD_ERROR", None)
         if reason:
             st.error(f"Model not loaded — {reason}")
         else:
@@ -56,15 +55,15 @@ def _render_score_grid(category_scores: Dict[str, float]) -> None:
                 """,
                 unsafe_allow_html=True,
             )
- 
- 
+
+
 def _render_result(result: Dict[str, Any]) -> None:
     st.markdown("<div class='section-label'>Summary</div>", unsafe_allow_html=True)
- 
+
     top_cat = result.get("top_category", "NONE")
     score = result.get("toxicity_score", 0.0)
     modified = result.get("was_modified", False)
- 
+
     s1, s2, s3 = st.columns(3)
     with s1:
         st.markdown(
@@ -84,11 +83,11 @@ def _render_result(result: Dict[str, Any]) -> None:
             <div class='metric-value'>{'Modified' if modified else 'Unmodified'}</div></div>""",
             unsafe_allow_html=True,
         )
- 
+
     st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
     st.markdown("<div class='section-label'>Category Breakdown</div>", unsafe_allow_html=True)
     _render_score_grid(result.get("category_scores", {}))
- 
+
     st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
     st.markdown("<div class='section-label'>Detoxified Output</div>", unsafe_allow_html=True)
     with st.container():
@@ -100,12 +99,21 @@ def _render_result(result: Dict[str, Any]) -> None:
             disabled=True,
         )
         _copy_button(result.get("detoxified_text", ""))
- 
- 
+
+
 def render_toxicity_tab() -> None:
     _init_toxicity_state()
 
     with st.container():
+        selected_language = st.selectbox(
+            "Language",
+            options=["English", "Arabic"],
+            index=0,
+            help="Select the language of the comment to invoke the corresponding model."
+        )
+
+        st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
+
         raw_text = st.text_area(
             "Input Text",
             value="",
@@ -115,13 +123,13 @@ def render_toxicity_tab() -> None:
         )
 
         st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
-        
 
+        default_thresh = 0.40 if selected_language == "Arabic" else 0.60
         threshold = st.number_input(
             "Toxicity Threshold",
             min_value=0.0,
             max_value=1.0,
-            value=0.60,
+            value=default_thresh,
             step=0.05,
             format="%.2f",
             help="Comments scoring above this threshold get rewritten by the LLM.",
@@ -139,7 +147,11 @@ def render_toxicity_tab() -> None:
     if process and can_process:
         with st.spinner("Analyzing and detoxifying text..."):
             try:
-                st.session_state.toxicity_result = detox.end_to_end_detoxifier(raw_text, threshold=threshold)
+                st.session_state.toxicity_result = detox.end_to_end_detoxifier(
+                    raw_text,
+                    threshold=threshold,
+                    language=selected_language
+                )
                 st.success("Analysis complete.")
             except Exception as exc:
                 st.session_state.toxicity_result = None
