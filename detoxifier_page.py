@@ -116,7 +116,7 @@ def render_toxicity_tab() -> None:
 
         raw_text = st.text_area(
             "Input Text",
-            value="",
+            key="detox_input_area",
             height=180,
             placeholder="Enter or paste a comment/message to analyze and detoxify.",
             label_visibility="collapsed",
@@ -157,6 +157,7 @@ def render_toxicity_tab() -> None:
                 st.session_state.toxicity_result = None
                 st.error(str(exc))
 
-    if st.session_state.get("toxicity_result"):
+    current_result = st.session_state.get("toxicity_result")
+    if current_result and current_result.get("original_text") == raw_text:
         with st.container():
-            _render_result(st.session_state.toxicity_result)
+            _render_result(current_result)

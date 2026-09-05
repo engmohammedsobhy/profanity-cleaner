@@ -1,13 +1,13 @@
 import os
 import re
 import string
-import numpy as np
-import tensorflow as tf
-import zipfile
 import json
+import zipfile
 import tempfile
 import shutil
+import numpy as np
 
+os.environ["TF_USE_LEGACY_KERAS"] = "1"
 
 try:
     import streamlit as st
@@ -50,9 +50,20 @@ client = Groq(api_key=GROQ_API_KEY) if Groq and GROQ_API_KEY else None
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-
 ENGLISH_CATEGORIES = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
 EN_MODEL_PATH = os.path.join(CURRENT_DIR, "toxicity_detection_model.keras")
+
+ARABIC_CATEGORIES = ['toxic']
+ARABIC_DEFAULT_THRESHOLD = 0.50
+ENGLISH_DEFAULT_THRESHOLD = 0.40
+
+POSSIBLE_AR_NAMES = [
+    "arabic_sentiment.keras.zip",
+    "arabic_sentiment.keras",
+    "arabic_model.keras",
+    "arabic_toxicity_model.keras",
+    "model.weights.h5"
+]
 
 MODEL_LOAD_ERROR = None
 ARABIC_MODEL_LOAD_ERROR = None
@@ -68,7 +79,20 @@ def advanced_clean_text(text: str) -> str:
         words = [w for w in text.split() if w not in custom_stopwords]
     return " ".join(words)
 
+def clean_arabic_text(text: str) -> str:
+    text = str(text).lower()
+    text = re.sub(r'https?://\S+|www\.\S+|@\w+', '', text)
+    text = re.sub(r'[\u0617-\u061A\u064B-\u0652\u0640]', '', text)
+    text = re.sub(r"[إأآا]", "ا", text)
+    text = re.sub(r"ى", "ي", text)
+    text = re.sub(r"ؤ", "و", text)
+    text = re.sub(r"ئ", "ي", text)
+    text = text.replace("#", "")
+    text = re.sub(r'[^\u0600-\u06FF\s]', ' ', text)
+    return re.sub(r'\s+', ' ', text).strip()
+
 def _load_keras_file(target_path):
+    import tensorflow as tf
 
     try:
         @tf.keras.utils.register_keras_serializable()
@@ -122,18 +146,6 @@ def _get_english_model():
         MODEL_LOAD_ERROR = str(e)
         return None
 
-
-ARABIC_CATEGORIES = ['toxic']
-
-ARABIC_DEFAULT_THRESHOLD = 0.50
-ENGLISH_DEFAULT_THRESHOLD = 0.40
-
-POSSIBLE_AR_NAMES = [
-    "arabic_sentiment.keras.zip",
-    "arabic_sentiment.keras",
-    "model.weights.h5"
-]
-
 def _resolve_arabic_model_path():
     for name in POSSIBLE_AR_NAMES:
         candidate = os.path.join(CURRENT_DIR, name)
@@ -143,18 +155,6 @@ def _resolve_arabic_model_path():
         if os.path.exists(working_candidate):
             return working_candidate
     return None
-
-def clean_arabic_text(text: str) -> str:
-    text = str(text).lower()
-    text = re.sub(r'https?://\S+|www\.\S+|@\w+', '', text)
-    text = re.sub(r'[\u0617-\u061A\u064B-\u0652\u0640]', '', text)
-    text = re.sub(r"[إأآا]", "ا", text)
-    text = re.sub(r"ى", "ي", text)
-    text = re.sub(r"ؤ", "و", text)
-    text = re.sub(r"ئ", "ي", text)
-    text = text.replace("#", "")
-    text = re.sub(r'[^\u0600-\u06FF\s]', ' ', text)
-    return re.sub(r'\s+', ' ', text).strip()
 
 def _get_arabic_model():
     global ARABIC_MODEL_LOAD_ERROR
@@ -174,7 +174,6 @@ def _get_arabic_model():
     except Exception as e:
         ARABIC_MODEL_LOAD_ERROR = str(e)
         return None
-
 
 if st is not None:
     @st.cache_resource
@@ -202,7 +201,6 @@ else:
         if _ar_model is None:
             _ar_model = _get_arabic_model()
         return _ar_model
-
 
 DETOX_SYSTEM_PROMPT_EN = """
 You are a direct text rephraser.
@@ -242,6 +240,7 @@ def end_to_end_detoxifier(raw_text: str, threshold: float = None, language: str 
             "category_scores": {cat: 0.0 for cat in categories}
         }
 
+    import tensorflow as tf
 
     if language == "Arabic":
         cleaned_input = clean_arabic_text(raw_text)
@@ -251,9 +250,7 @@ def end_to_end_detoxifier(raw_text: str, threshold: float = None, language: str 
         if model is not None:
             raw_pred = model.predict(input_array, verbose=0)
             positive_probability = float(np.squeeze(raw_pred))
-            
             toxicity_score = 1.0 - positive_probability
-            
             max_score = float(np.clip(toxicity_score, 0.0, 1.0))
             top_category = "TOXIC" if max_score >= threshold else "SAFE"
             category_scores = {"toxic": max_score}
@@ -278,6 +275,7 @@ def end_to_end_detoxifier(raw_text: str, threshold: float = None, language: str 
             top_category = "UNKNOWN"
             category_scores = {}
 
+   
     if max_score < threshold:
         return {
             "original_text": raw_text,
@@ -305,24 +303,28 @@ def end_to_end_detoxifier(raw_text: str, threshold: float = None, language: str 
         else f"Rewrite this comment politely: {raw_text}"
     )
 
-    response = client.chat.completions.create(
-        model="allam-2-7b",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
-        temperature=0.0,
-        max_tokens=500
-    )
+    try:
+        response = client.chat.completions.create(
+            model="allam-2-7b",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.0,
+            max_tokens=500
+        )
 
-    raw_content = response.choices[0].message.content
+        raw_content = response.choices[0].message.content
 
-    if "</think>" in raw_content:
-        clean_content = raw_content.split("</think>")[-1].strip()
-    else:
-        clean_content = re.sub(r'<think>.*', '', raw_content, flags=re.DOTALL).strip()
-        if not clean_content:
-            clean_content = raw_content.split("\n")[-1].strip()
+        
+        if "</think>" in raw_content:
+            clean_content = raw_content.split("</think>")[-1].strip()
+        else:
+            clean_content = re.sub(r'<think>.*', '', raw_content, flags=re.DOTALL).strip()
+            if not clean_content:
+                clean_content = raw_content.split("\n")[-1].strip()
+    except Exception:
+        clean_content = raw_text
 
     return {
         "original_text": raw_text,

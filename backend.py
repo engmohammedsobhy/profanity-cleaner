@@ -103,46 +103,7 @@ VAD_UTILS_REFERENCE = None
 GLOBAL_WHITELIST_WORDS: Set[str] = set()
 GLOBAL_BLACKLIST_WORDS: Set[str] = set()
 
-ICON_COLOR_UNCHECKED = "#ffffff"
-ICON_COLOR_CHECKED = "#000000"
 
-SVG_BASE_DIR = CENSOR_SOUND_DIR
-
-SVG_MAP_WHITE = {
-    "silence": os.path.join(SVG_BASE_DIR, r"xw.svg"),
-    "sound": os.path.join(SVG_BASE_DIR, r"xw2.svg"),
-    "sine": os.path.join(SVG_BASE_DIR, r"xw3.svg"),
-    "quack": os.path.join(SVG_BASE_DIR, r"xw4.svg"),
-    "dolphin": os.path.join(SVG_BASE_DIR, r"xw5.svg"),
-    "triggered": os.path.join(SVG_BASE_DIR, r"xw6.svg"),
-}
-
-SVG_MAP_BLACK = {
-    "silence": os.path.join(SVG_BASE_DIR, r"xb.svg"),
-    "sound": os.path.join(SVG_BASE_DIR, r"xb2.svg"),
-    "sine": os.path.join(SVG_BASE_DIR, r"xb3.svg"),
-    "quack": os.path.join(SVG_BASE_DIR, r"xb4.svg"),
-    "dolphin": os.path.join(SVG_BASE_DIR, r"xb5.svg"),
-    "triggered": os.path.join(SVG_BASE_DIR, r"xb6.svg"),
-}
-
-MASCOT_SVG_PATHS = {
-    "media": os.path.join(CENSOR_SOUND_DIR, "m1.svg"),
-    "text": os.path.join(CENSOR_SOUND_DIR, "m2.svg"),
-    "startup": os.path.join(CENSOR_SOUND_DIR, "m3.svg"),
-    "working": os.path.join(CENSOR_SOUND_DIR, "m4.svg"),
-    "success": os.path.join(CENSOR_SOUND_DIR, "m4-.svg"),
-    "drag": os.path.join(CENSOR_SOUND_DIR, "m5.svg"),
-}
-MASCOT_MIN_DISPLAY_SIZE = (550, 550)
-
-FIXED_WINDOW_WIDTH = 1350
-CONTROLS_COLUMN_WIDTH = 640
-FIXED_WINDOW_HEIGHT = 770
-
-MASCOT_AREA_WIDTH = FIXED_WINDOW_WIDTH - CONTROLS_COLUMN_WIDTH
-
-MASCOT_AREA_HEIGHT = 600
 
 
 
