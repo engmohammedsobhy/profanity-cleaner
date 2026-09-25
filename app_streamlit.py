@@ -40,9 +40,36 @@ st.markdown(
         }
 
         .stApp {
-            background-color: #000000 !important;
-            background-image: radial-gradient(circle at 50% -10%, #261a1a 0%, #000000 75%) !important;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(118deg, #08090d, #1d1018, #101721, #08090d) !important;
+            background-size: 320% 320% !important;
+            animation: app-gradient-drift 24s ease-in-out infinite !important;
             color: var(--text-primary) !important;
+        }
+
+        .stApp::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+            background: radial-gradient(circle at 15% 20%, rgba(229, 9, 20, 0.22), transparent 28%), radial-gradient(circle at 83% 72%, rgba(28, 134, 179, 0.18), transparent 30%), radial-gradient(circle at 54% 100%, rgba(253, 164, 36, 0.1), transparent 24%);
+            animation: ambient-shift 18s ease-in-out infinite alternate;
+        }
+
+        @keyframes app-gradient-drift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        @keyframes ambient-shift {
+            from { transform: scale(1) translate3d(-1%, -1%, 0); opacity: 0.72; }
+            to { transform: scale(1.08) translate3d(1.5%, 1%, 0); opacity: 1; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .stApp, .stApp::before { animation: none !important; }
         }
 
         /* Unified Spacing and Compact Gaps */
@@ -166,6 +193,64 @@ st.markdown(
             line-height: 1.4;
         }
 
+        /* Enhanced Home Page */
+        .home-hero {
+            position: relative;
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: minmax(0, 1.4fr) minmax(210px, 0.6fr);
+            gap: 2rem;
+            padding: 2rem;
+            margin-bottom: 1.25rem;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 8px;
+            background: rgba(8, 10, 15, 0.64);
+            box-shadow: 0 18px 48px rgba(0, 0, 0, 0.26);
+            backdrop-filter: blur(26px);
+            -webkit-backdrop-filter: blur(26px);
+        }
+
+        .home-hero::after {
+            content: "";
+            position: absolute;
+            width: 15rem;
+            height: 15rem;
+            right: -6rem;
+            top: -7rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            box-shadow: 0 0 0 2rem rgba(229, 9, 20, 0.05), 0 0 0 5rem rgba(255, 255, 255, 0.025);
+            pointer-events: none;
+        }
+
+        .home-kicker { color: #ff786f; font-size: 0.73rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.75rem; }
+        .home-hero-title { max-width: 650px; margin: 0; color: #ffffff; font-size: 2.45rem; line-height: 1.08; font-weight: 700; letter-spacing: 0; }
+        .home-hero-title span { color: #ff7068; }
+        .home-hero-copy { max-width: 610px; margin: 0.9rem 0 0; color: #b5b7c0; font-size: 1rem; line-height: 1.55; }
+        .home-hero-status { align-self: end; display: grid; gap: 0.7rem; padding: 1.15rem; border-left: 2px solid #ff5148; background: rgba(255, 255, 255, 0.045); }
+        .home-status-label { color: #8f929c; font-size: 0.69rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+        .home-status-value { color: #ffffff; font-size: 1.15rem; font-weight: 700; line-height: 1.25; }
+        .home-status-detail { color: #a7aab4; font-size: 0.84rem; line-height: 1.4; }
+        .home-stat-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; margin: 1.25rem 0 1.1rem; }
+        .home-stat { padding: 0.75rem 0.9rem; border-left: 1px solid rgba(255, 255, 255, 0.14); }
+        .home-stat:first-child { border-left: none; padding-left: 0; }
+        .home-stat-value { color: #ffffff; font-size: 1.1rem; font-weight: 700; }
+        .home-stat-label { color: #92959f; font-size: 0.74rem; margin-top: 0.18rem; }
+        .home-card { height: 100%; box-sizing: border-box; background: rgba(13, 15, 22, 0.72) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; border-radius: 8px !important; padding: 1.45rem 1.5rem !important; min-height: 255px; }
+        .home-card:hover { transform: translateY(-3px) !important; }
+        .home-feature-item b { color: #ffffff; }
+        .home-card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 1.1rem; padding-top: 0.9rem; border-top: 1px solid rgba(255, 255, 255, 0.09); color: #a5a8b1; font-size: 0.76rem; font-weight: 600; }
+        .home-card-footer strong { color: #ff7068; font-weight: 700; }
+        .home-footer { display: flex; justify-content: space-between; gap: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.1); color: #90939d; font-size: 0.8rem; }
+
+        @media (max-width: 760px) {
+            .home-hero { grid-template-columns: 1fr; gap: 1.25rem; padding: 1.4rem; }
+            .home-hero-title { font-size: 2rem; }
+            .home-stat-row { gap: 0.25rem; }
+            .home-stat { padding: 0.65rem 0.5rem; }
+            .home-footer { display: block; }
+            .home-footer span + span { display: block; margin-top: 0.35rem; }
+        }
         /* Apple Metric Strips */
         .metric-card {
             background: rgba(255, 255, 255, 0.03);
@@ -395,21 +480,23 @@ def render_header() -> None:
 def render_home_page() -> None:
     st.markdown(
         """
-        <div style="background: linear-gradient(135deg, rgba(229, 9, 20, 0.15) 0%, rgba(28, 28, 30, 0.65) 100%); 
-                    border: 1px solid rgba(229, 9, 20, 0.3); 
-                    border-radius: 20px; 
-                    padding: 1.6rem 2rem; 
-                    margin-bottom: 1.2rem; 
-                    backdrop-filter: blur(25px);
-                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);">
-            <div class="home-badge">Content Moderation Engine v2.0</div>
-            <h2 style="color: #ffffff; font-size: 1.85rem; font-weight: 700; margin: 0.2rem 0 0.5rem 0; letter-spacing: -0.02em;">
-                Next-Gen Profanity Moderation
-            </h2>
-            <p style="color: #a1a1a6; font-size: 1.02rem; margin: 0; line-height: 1.5;">
-                Unified suite for audio/video speech censoring and granular linguistic analysis.
-            </p>
-        </div>
+        <section class="home-hero">
+            <div>
+                <div class="home-kicker">Purity moderation workspace</div>
+                <h1 class="home-hero-title">Make every frame <span>safer to share.</span></h1>
+                <p class="home-hero-copy">Review spoken media and written text from one focused workspace, with granular rules, traceable findings, and clean exports when the work is done.</p>
+                <div class="home-stat-row">
+                    <div class="home-stat"><div class="home-stat-value">Media</div><div class="home-stat-label">Speech and video review</div></div>
+                    <div class="home-stat"><div class="home-stat-value">Text</div><div class="home-stat-label">Language analysis</div></div>
+                    <div class="home-stat"><div class="home-stat-value">Exports</div><div class="home-stat-label">Logs and clean files</div></div>
+                </div>
+            </div>
+            <aside class="home-hero-status">
+                <div class="home-status-label">Workspace status</div>
+                <div class="home-status-value">Ready for review</div>
+                <div class="home-status-detail">Choose a workflow below to start a focused moderation pass.</div>
+            </aside>
+        </section>
         """,
         unsafe_allow_html=True,
     )
@@ -420,67 +507,45 @@ def render_home_page() -> None:
         st.markdown(
             """
             <div class="home-card">
-                <div class="home-badge">Speech & Audio Engine</div>
+                <div class="home-badge">Speech and audio</div>
                 <div class="home-card-title">Media Moderation</div>
-                <div class="home-card-desc">
-                    Frame-accurate audio bleeping, timestamped speech muting, and automated subtitle export for videos and recordings.
-                </div>
-                <div class="home-feature-item"><b>Whisper ASR</b>: High-precision speech-to-text transcription.</div>
-                <div class="home-feature-item"><b>Censor Audio</b>: Mute audio intervals or overlay custom bleep sound.</div>
-                <div class="home-feature-item"><b>Export Subtitles</b>: Generate raw & clean .SRT & JSON logs.</div>
+                <div class="home-card-desc">Review recordings and video with timestamp-aware detection, targeted censoring, and export-ready transcripts.</div>
+                <div class="home-feature-item"><b>Transcribe</b> spoken content with Whisper ASR.</div>
+                <div class="home-feature-item"><b>Censor</b> flagged intervals with muting or bleep audio.</div>
+                <div class="home-feature-item"><b>Export</b> clean subtitles and detailed word logs.</div>
+                <div class="home-card-footer"><span>For video and audio files</span><strong>Media workflow</strong></div>
             </div>
             """,
             unsafe_allow_html=True,
         )
-        st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
-        st.button(
-            "Launch Media Moderation",
-            key="home_btn_media",
-            use_container_width=True,
-            type="primary",
-            on_click=set_page,
-            args=("Media Moderation",),
-        )
+        st.button("Launch Media Moderation", key="home_btn_media", use_container_width=True, type="primary", on_click=set_page, args=("Media Moderation",))
 
     with col2:
-        st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
-
         st.markdown(
             """
             <div class="home-card">
-                <div class="home-badge">Linguistics & Dictionary</div>
+                <div class="home-badge">Language analysis</div>
                 <div class="home-card-title">Text NLP Moderation</div>
-                <div class="home-card-desc">
-                    Rule-based text sanitization with obfuscation detection (leet speak, unicode tricks) and custom word override lists.
-                </div>
-                <div class="home-feature-item"><b>Obfuscation Removal</b>: Unmasks hidden profanity patterns.</div>
-                <div class="home-feature-item"><b>Category Rules</b>: 13 granular profanity classes.</div>
-                <div class="home-feature-item"><b>Linguistic Metrics</b>: POS tagging & profanity density analysis.</div>
+                <div class="home-card-desc">Inspect written content with adjustable rules, obfuscation detection, and clear linguistic context for every finding.</div>
+                <div class="home-feature-item"><b>Normalize</b> leet speak and Unicode obfuscation.</div>
+                <div class="home-feature-item"><b>Configure</b> categories, allow lists, and block lists.</div>
+                <div class="home-feature-item"><b>Analyze</b> density, tokens, and sentence-level results.</div>
+                <div class="home-card-footer"><span>For pasted text and documents</span><strong>Text workflow</strong></div>
             </div>
             """,
             unsafe_allow_html=True,
         )
-        st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
-        st.button(
-            "Launch Text NLP",
-            key="home_btn_nlp",
-            use_container_width=True,
-            type="primary",
-            on_click=set_page,
-            args=("Text NLP",),
-        )
+        st.button("Launch Text NLP", key="home_btn_nlp", use_container_width=True, type="primary", on_click=set_page, args=("Text NLP",))
 
-    st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
     st.markdown(
         """
-        <div style="text-align: center; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1rem; color: #86868b; font-size: 0.82rem;">
-            <span>Powered by <b>OpenAI Whisper ASR</b> • <b>Streamlit Cloud Engine</b></span>
+        <div class="home-footer">
+            <span>Powered by OpenAI Whisper ASR and Streamlit.</span>
+            <span>Moderation results remain visible for review and export.</span>
         </div>
         """,
         unsafe_allow_html=True,
     )
-
-
 def render_metric_grid(stats: Dict[str, Any], mapping: List[tuple[str, str]]) -> None:
     cols = st.columns(len(mapping))
     for col, (label, key) in zip(cols, mapping):
