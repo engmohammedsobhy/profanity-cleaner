@@ -51,8 +51,6 @@ try:
 except Exception:
     torch = None
 
-DEFAULT_TOXICITY_THRESHOLD = 0.75
-MIN_TOXICITY_WORD_COUNT = 3
 MEDIA_TRANSCRIPT_REPLACEMENT = "****"
 MEDIA_EXTENSIONS = (".mp4", ".mkv", ".avi", ".mov", ".mp3", ".wav", ".m4a")
 VIDEO_EXTENSIONS = (".mp4", ".mkv", ".avi", ".mov", ".webm", ".m4v")
@@ -87,10 +85,6 @@ DETERMINERS = set("a an the this that these those my your his her its our their"
 PREPOSITIONS = set("about above after against at before between by for from in into of on to under with without".split())
 CONJUNCTIONS = set("and but or nor for yet so although because while".split())
 AUXILIARIES = set("am are be been being can could did do does had has have is may might must shall should was were will would".split())
-
-TOXICITY_MODEL = None
-TOXICITY_TOKENIZER = None
-TOXICITY_DEVICE = torch.device("cuda" if torch is not None and torch.cuda.is_available() else "cpu") if torch is not None else None
 
 @dataclass
 class TokenAnalysis:
@@ -815,7 +809,7 @@ class DummyCallback:
 @st.cache_resource(max_entries=1, show_spinner=False)
 def _cached_load_asr(model_name: str) -> Any:
     b = require_backend()
-    return b.load_ml_resources(DummyCallback(), False, model_name)
+    return b.load_ml_resources(DummyCallback(), model_name)
 
 
 def process_media_file(file_path: str, options: Dict[str, Any], progress_callback: Any = None, progress_value_callback: Any = None) -> Dict[str, Any]:
@@ -845,7 +839,7 @@ def process_media_file(file_path: str, options: Dict[str, Any], progress_callbac
         b.ML_MODEL_CACHE[asr_model] = cached_model
         b.ASR_MODEL_KEY_CURRENT = asr_model
     else:
-        b.load_ml_resources(progress_callback, False, asr_model)
+        b.load_ml_resources(progress_callback, asr_model)
 
     emit(progress_value_callback, 5)
     pre_converted = b.pre_convert_to_wav(file_path, progress_callback)
@@ -860,7 +854,7 @@ def process_media_file(file_path: str, options: Dict[str, Any], progress_callbac
     emit(progress_value_callback, 15)
     transcription = b.transcribe_audio(vad_path, progress_callback)
     emit(progress_callback, "Generating word-level log and transcript exports.")
-    log = b.generate_conversation_log(transcription, 0.0, False)
+    log = b.generate_conversation_log(transcription)
 
     base, _ = os.path.splitext(file_path)
     log_path = None
@@ -927,7 +921,7 @@ def transcribe_media_to_text(file_path: str, asr_model: str = "base.en", progres
     if asr_model in getattr(b, "ML_MODEL_CACHE", {}):
         b.ASR_MODEL_KEY_CURRENT = asr_model
     else:
-        b.load_ml_resources(progress_callback, False, asr_model)
+        b.load_ml_resources(progress_callback, asr_model)
 
     temp_files: List[str] = []
     try:

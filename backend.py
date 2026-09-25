@@ -12,11 +12,6 @@ import platform
 import gc
 from typing import List, Dict, Any, Tuple, Set, Callable
 from urllib.parse import quote
-try:
-    from toxicity_detoxifier import end_to_end_detoxifier
-except Exception as e:
-    print(f"INFO: toxicity_detoxifier optional import skipped: {e}")
-    end_to_end_detoxifier = None
 
 
 
@@ -48,8 +43,6 @@ def set_app_user_model_id(app_id: str): #---------------------------------------
 
 
 
-DEFAULT_TOXICITY_THRESHOLD = 0.75
-MIN_TOXICITY_WORD_COUNT = 3
 MEDIA_TRANSCRIPT_REPLACEMENT = "****"
 MIN_SEGMENT_DURATION_MS = 1000 # Kept for reference, but removed from SRT logic
 SPLASH_FADE_DURATION_MS = 500
@@ -88,12 +81,10 @@ try:#---------------------------------------------------------------------------
 except NameError:
     pass
 
-TOXICITY_MODEL = None
-TOXICITY_TOKENIZER = None
 try:
-    TOXICITY_DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    VAD_DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 except NameError:
-    TOXICITY_DEVICE = None
+    VAD_DEVICE = None
 
 VAD_MODEL = None
 VAD_SAMPLE_RATE = 16000
@@ -107,16 +98,6 @@ GLOBAL_BLACKLIST_WORDS: Set[str] = set()
 
 
 
-def calculate_toxicity_score(text: str) -> float:
-    if not text or not text.strip():
-        return 0.0
-    try:
-        res = end_to_end_detoxifier(text)
-        return float(res.get("toxicity_score", 0.0))
-    except Exception as e:
-        print(f"Error calculating toxicity: {e}")
-        return 0.0
-    
 
 def normalize_text_for_profanity(word: str) -> str: #------------------------------------------------------------------------------------------------------------------------
     
@@ -297,13 +278,13 @@ class Stream(object):
         self.line_buffer = ""
 
 
-def load_ml_resources(progress_callback: Any, load_toxicity: bool, asr_model_name: str):
+def load_ml_resources(progress_callback: Any, asr_model_name: str):
     progress_callback = _normalize_callback(progress_callback)
     
     if 'whisper' not in sys.modules or 'torch' not in sys.modules:
         raise Exception("Core ML libraries (whisper, torch) are not installed. Cannot proceed.")
         
-    global TOXICITY_MODEL, TOXICITY_TOKENIZER, TOXICITY_DEVICE, VAD_MODEL, VAD_UTILS_REFERENCE, ML_MODEL_CACHE, ASR_MODEL_KEY_CURRENT
+    global VAD_DEVICE, VAD_MODEL, VAD_UTILS_REFERENCE, ML_MODEL_CACHE, ASR_MODEL_KEY_CURRENT
 
     if asr_model_name:
         if asr_model_name in ML_MODEL_CACHE:
@@ -340,7 +321,7 @@ def load_ml_resources(progress_callback: Any, load_toxicity: bool, asr_model_nam
                 VAD_UTILS_REFERENCE = vad_utils_container
 
             VAD_MODEL = vad_model
-            VAD_MODEL.to(TOXICITY_DEVICE)
+            VAD_MODEL.to(VAD_DEVICE)
             progress_callback.emit("VAD Model loaded successfully.")
         except Exception as e:
             VAD_MODEL = None
@@ -355,7 +336,7 @@ def apply_vad_filtering(input_path: str, progress_callback: Any) -> str:
         progress_callback.emit("torchaudio or pydub not imported. Skipping VAD filtering.")
         return input_path
         
-    global VAD_MODEL, VAD_SAMPLE_RATE, TOXICITY_DEVICE, VAD_UTILS_REFERENCE
+    global VAD_MODEL, VAD_SAMPLE_RATE, VAD_DEVICE, VAD_UTILS_REFERENCE
 
     if VAD_MODEL is None:
         return input_path
@@ -385,7 +366,7 @@ def apply_vad_filtering(input_path: str, progress_callback: Any) -> str:
         if audio_tensor.shape[0] > 1:
             audio_tensor = torch.mean(audio_tensor, dim=0, keepdim=True)
 
-        audio_tensor = audio_tensor.to(TOXICITY_DEVICE)
+        audio_tensor = audio_tensor.to(VAD_DEVICE)
 
         try:
             get_speech_timestamps = VAD_UTILS_REFERENCE
@@ -542,20 +523,11 @@ def format_time_srt(ms: int) -> str:
     return f"{hours:02}:{minutes:02}:{seconds:02},{ms:03}"
 
 
-def generate_conversation_log(transcription_result: Dict[str, Any], toxicity_threshold: float, check_toxicity: bool) -> List[Dict[str, Any]]:
+def generate_conversation_log(transcription_result: Dict[str, Any]) -> List[Dict[str, Any]]:
     
     conversation_log = []
 
     for segment in transcription_result.get("segments", []):
-        segment_text = segment.get('text', '').strip()
-
-        toxicity_score = 0.0
-        is_toxic = False
-
-        if check_toxicity:
-            toxicity_score = calculate_toxicity_score(segment_text)
-            is_toxic = toxicity_score >= toxicity_threshold
-
         for word_info in segment.get("words", []):
             if isinstance(word_info, dict) and 'word' in word_info:
                 word = word_info['word'].strip()
@@ -571,8 +543,6 @@ def generate_conversation_log(transcription_result: Dict[str, Any], toxicity_thr
                 "end_ms": int(end * 1000),
                 "word": word,
                 "is_profane": is_profane,
-                "is_toxic": is_toxic,
-                "toxicity_score": round(toxicity_score, 4),
             }
             conversation_log.append(log_entry)
 
@@ -907,9 +877,6 @@ def generate_plain_text_file(transcription_result: Dict[str, Any], full_log: Lis
 
         if segment_words:
             sentence = " ".join(segment_words).strip()
-            if censor_profane:
-                detox_res = end_to_end_detoxifier(sentence, threshold=DEFAULT_TOXICITY_THRESHOLD)
-                sentence = detox_res.get("detoxified_text", sentence)
             final_text_lines.append(sentence)
 
     text_content = "\n".join(final_text_lines)

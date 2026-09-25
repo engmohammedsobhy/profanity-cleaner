@@ -14,5 +14,3 @@ env/
 
 .vscode/
 .idea/
-
-toxicity_model.keras

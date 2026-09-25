@@ -14,11 +14,6 @@ fastapi
 uvicorn
 pydantic
 
-# TensorFlow & Keras 2.15 Compatibility Layer
-tensorflow-cpu==2.15.0
-keras==2.15.0
-groq
-python-dotenv
 nltk
 
 # Document & Profanity Tools

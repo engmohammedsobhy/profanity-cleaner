@@ -1,7 +1,4 @@
 from __future__ import annotations
-import os
-os.environ["TF_USE_LEGACY_KERAS"] = "1"
-
 import html
 import json
 import mimetypes
@@ -9,8 +6,8 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List
 
-import detoxifier_page
-import stream_toxicity_detection
+
+
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -392,7 +389,7 @@ def compact_rows(rows: List[Dict[str, Any]], keys: List[str]) -> List[Dict[str, 
 
 def render_header() -> None:
     st.markdown("<div class='apple-title'>Profanity Cleaner</div>", unsafe_allow_html=True)
-    st.markdown("<div class='apple-subtitle'>Intelligent media moderation, speech censoring, toxicity detection & AI detoxification.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='apple-subtitle'>Intelligent media moderation, speech censoring, and text sanitization.</div>", unsafe_allow_html=True)
 
 
 def render_home_page() -> None:
@@ -407,10 +404,10 @@ def render_home_page() -> None:
                     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);">
             <div class="home-badge">Content Moderation Engine v2.0</div>
             <h2 style="color: #ffffff; font-size: 1.85rem; font-weight: 700; margin: 0.2rem 0 0.5rem 0; letter-spacing: -0.02em;">
-                Next-Gen Moderation & Generative AI Detoxification
+                Next-Gen Profanity Moderation
             </h2>
             <p style="color: #a1a1a6; font-size: 1.02rem; margin: 0; line-height: 1.5;">
-                Unified suite for neural toxicity classification, automated polite rephrasing, audio/video speech censoring, and granular linguistic analysis.
+                Unified suite for audio/video speech censoring and granular linguistic analysis.
             </p>
         </div>
         """,
@@ -420,33 +417,6 @@ def render_home_page() -> None:
     col1, col2 = st.columns(2, gap="medium")
 
     with col1:
-        st.markdown(
-            """
-            <div class="home-card">
-                <div class="home-badge">Deep Learning AI</div>
-                <div class="home-card-title">Toxicity Detection</div>
-                <div class="home-card-desc">
-                    Multi-label neural network classification quantifying toxicity across 6 risk dimensions with real-time score breakdown.
-                </div>
-                <div class="home-feature-item"><b>6 Categories</b>: Toxic, Severe Toxic, Obscene, Threat, Insult, Identity Hate.</div>
-                <div class="home-feature-item"><b>Sensitivity Slider</b>: Custom probability threshold filtering.</div>
-                <div class="home-feature-item"><b>Multi-Modal Input</b>: Text and Media Transcription.</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
-        st.button(
-            "Launch Toxicity Detection",
-            key="home_btn_tox",
-            use_container_width=True,
-            type="primary",
-            on_click=set_page,
-            args=("Toxicity Detection",),
-        )
-
-        st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
-
         st.markdown(
             """
             <div class="home-card">
@@ -473,31 +443,6 @@ def render_home_page() -> None:
         )
 
     with col2:
-        st.markdown(
-            """
-            <div class="home-card">
-                <div class="home-badge">LLM Generative AI</div>
-                <div class="home-card-title">Toxicity Detoxifier</div>
-                <div class="home-card-desc">
-                    Intelligent text rephrasing engine that automatically converts toxic or aggressive text into polite, professional communication.
-                </div>
-                <div class="home-feature-item"><b>Context Rewriting</b>: Preserves sentence meaning without hostility.</div>
-                <div class="home-feature-item"><b>Diff Highlighting</b>: Visual side-by-side comparison.</div>
-                <div class="home-feature-item"><b>Smart Bypassing</b>: Leaves non-toxic text completely untouched.</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
-        st.button(
-            "Launch Toxicity Detoxifier",
-            key="home_btn_detox",
-            use_container_width=True,
-            type="primary",
-            on_click=set_page,
-            args=("Toxicity Detoxifier",),
-        )
-
         st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
 
         st.markdown(
@@ -529,7 +474,7 @@ def render_home_page() -> None:
     st.markdown(
         """
         <div style="text-align: center; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1rem; color: #86868b; font-size: 0.82rem;">
-            <span>Powered by <b>TensorFlow 2.15 (Bi-LSTM)</b> • <b>OpenAI Whisper ASR</b> • <b>Generative LLM</b> • <b>Streamlit Cloud Engine</b></span>
+            <span>Powered by <b>OpenAI Whisper ASR</b> • <b>Streamlit Cloud Engine</b></span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1096,9 +1041,6 @@ def main() -> None:
         st.button("Home", use_container_width=True, type="primary" if st.session_state.current_page == "Home" else "secondary", on_click=set_page, args=("Home",))
         st.button("Media Moderation", use_container_width=True, type="primary" if st.session_state.current_page == "Media Moderation" else "secondary", on_click=set_page, args=("Media Moderation",))
         st.button("Text NLP Moderation", use_container_width=True, type="primary" if st.session_state.current_page == "Text NLP" else "secondary", on_click=set_page, args=("Text NLP",))
-        st.button("Toxicity Detoxifier", use_container_width=True, type="primary" if st.session_state.current_page == "Toxicity Detoxifier" else "secondary", on_click=set_page, args=("Toxicity Detoxifier",))
-        
-        st.button("Toxicity Detection", use_container_width=True, type="primary" if st.session_state.current_page == "Toxicity Detection" else "secondary", on_click=set_page, args=("Toxicity Detection",))
     page = st.session_state.current_page
         
     render_header()
@@ -1109,10 +1051,6 @@ def main() -> None:
         render_media_tab()
     elif page == "Text NLP":
         render_text_tab()
-    elif page == "Toxicity Detoxifier":
-        detoxifier_page.render_toxicity_tab()
-    elif page == "Toxicity Detection":
-        stream_toxicity_detection.render_toxicity_page()
 
 
 if __name__ == "__main__":
