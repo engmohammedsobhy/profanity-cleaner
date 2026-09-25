@@ -40,22 +40,10 @@ st.markdown(
         }
 
         .stApp {
-            position: relative;
-            overflow: hidden;
             background: linear-gradient(118deg, #08090d, #1d1018, #101721, #08090d) !important;
             background-size: 320% 320% !important;
             animation: app-gradient-drift 24s ease-in-out infinite !important;
             color: var(--text-primary) !important;
-        }
-
-        .stApp::before {
-            content: "";
-            position: fixed;
-            inset: 0;
-            z-index: -1;
-            pointer-events: none;
-            background: radial-gradient(circle at 15% 20%, rgba(229, 9, 20, 0.22), transparent 28%), radial-gradient(circle at 83% 72%, rgba(28, 134, 179, 0.18), transparent 30%), radial-gradient(circle at 54% 100%, rgba(253, 164, 36, 0.1), transparent 24%);
-            animation: ambient-shift 18s ease-in-out infinite alternate;
         }
 
         @keyframes app-gradient-drift {
@@ -63,13 +51,8 @@ st.markdown(
             50% { background-position: 100% 50%; }
         }
 
-        @keyframes ambient-shift {
-            from { transform: scale(1) translate3d(-1%, -1%, 0); opacity: 0.72; }
-            to { transform: scale(1.08) translate3d(1.5%, 1%, 0); opacity: 1; }
-        }
-
         @media (prefers-reduced-motion: reduce) {
-            .stApp, .stApp::before { animation: none !important; }
+            .stApp { animation: none !important; }
         }
 
         /* Unified Spacing and Compact Gaps */
